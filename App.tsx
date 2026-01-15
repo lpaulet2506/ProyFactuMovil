@@ -1,0 +1,535 @@
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Trash2, Download, Volume2, Receipt, History, FilePlus2, Search, Calendar, Building2, Save, LogOut, ShieldCheck, UserPlus, Lock, User as UserIcon, Mail } from 'lucide-react';
+import Input from './components/Input';
+import { InvoiceData, InvoiceItem, SavedInvoice, IssuerData, User } from './types';
+import { generateInvoicePDF } from './utils/pdfGenerator';
+import { speakInvoiceSummary } from './services/geminiTts';
+import { storage, emailService } from './services/storage';
+
+const App: React.FC = () => {
+  const [currentUser, setCurrentUser] = useState<User | null>(storage.getCurrentUser());
+  const [activeTab, setActiveTab] = useState<'create' | 'history' | 'settings' | 'admin'>('create');
+  const [history, setHistory] = useState<SavedInvoice[]>([]);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  
+  const initialInvoiceState: InvoiceData = {
+    customerName: '',
+    idNumber: '',
+    address: '',
+    postalCode: '',
+    items: [{ id: crypto.randomUUID(), concept: '', amount: 0 }],
+    ivaPercentage: 21,
+  };
+
+  const [data, setData] = useState<InvoiceData>(initialInvoiceState);
+  
+  const [issuer, setIssuer] = useState<IssuerData>({
+    name: '',
+    idNumber: '',
+    address: '',
+    postalCode: '',
+    city: '',
+    phone: '',
+    email: '',
+    nextInvoiceNumber: '0001'
+  });
+
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [newUserForm, setNewUserForm] = useState({ email: '', password: '', role: 'user' as const });
+
+  useEffect(() => {
+    if (currentUser) {
+      setHistory(storage.getInvoices());
+      const savedIssuer = storage.getIssuerData();
+      if (savedIssuer) setIssuer(savedIssuer);
+      if (currentUser.role === 'admin') setAllUsers(storage.getAllUsers());
+    }
+  }, [activeTab, currentUser]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const user = storage.login(loginForm.email, loginForm.password);
+    if (user) {
+      setCurrentUser(user);
+      speakInvoiceSummary(`Sesión iniciada correctamente.`);
+    } else {
+      alert("Credenciales incorrectas.");
+    }
+  };
+
+  const handleLogout = () => {
+    storage.logout();
+    setCurrentUser(null);
+    setActiveTab('create');
+    speakInvoiceSummary("Sesión cerrada.");
+  };
+
+  const handleRecoverPassword = () => {
+    if (!loginForm.email) {
+      alert("Por favor, introduce tu correo electrónico primero.");
+      return;
+    }
+    emailService.sendRecoveryEmail(loginForm.email);
+    alert(`Se ha enviado un correo de recuperación a: ${loginForm.email}`);
+  };
+
+  const handleCreateUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserForm.email || !newUserForm.password) {
+      alert("Completa todos los campos.");
+      return;
+    }
+    try {
+      storage.addUser({
+        id: crypto.randomUUID(),
+        email: newUserForm.email,
+        password: newUserForm.password,
+        role: newUserForm.role,
+        createdAt: new Date().toISOString()
+      });
+      alert("Usuario creado y correo de bienvenida enviado.");
+      setNewUserForm({ email: '', password: '', role: 'user' });
+      setAllUsers(storage.getAllUsers());
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleInputChange = (field: keyof InvoiceData, value: any) => {
+    setData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleIssuerChange = (field: keyof IssuerData, value: any) => {
+    setIssuer(prev => ({ ...prev, [field]: value }));
+  };
+
+  const saveIssuerSettings = () => {
+    storage.saveIssuerData(issuer);
+    speakInvoiceSummary("Configuración de empresa guardada.");
+    alert("Datos de empresa actualizados.");
+  };
+
+  const resetForm = useCallback(() => {
+    setData(initialInvoiceState);
+    if (activeTab !== 'create') setActiveTab('create');
+    speakInvoiceSummary("Formulario reseteado.");
+  }, [activeTab]);
+
+  const handleItemChange = (id: string, field: keyof InvoiceItem, value: any) => {
+    setData(prev => ({
+      ...prev,
+      items: prev.items.map(item => item.id === id ? { ...item, [field]: value } : item)
+    }));
+  };
+
+  const addItem = () => {
+    setData(prev => ({
+      ...prev,
+      items: [...prev.items, { id: crypto.randomUUID(), concept: '', amount: 0 }]
+    }));
+  };
+
+  const removeItem = (id: string) => {
+    if (data.items.length === 1) return;
+    setData(prev => ({
+      ...prev,
+      items: prev.items.filter(item => item.id !== id)
+    }));
+  };
+
+  const calculateSubtotal = () => data.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const subtotal = calculateSubtotal();
+  const ivaAmount = subtotal * (data.ivaPercentage / 100);
+  const total = subtotal + ivaAmount;
+
+  const handleGenerate = async () => {
+    if (!data.customerName) return alert("Ingrese el nombre del cliente.");
+    if (!currentUser) return;
+
+    const currentIssuer = storage.getIssuerData();
+    const seriesNumber = currentIssuer?.nextInvoiceNumber || '0001';
+    
+    setIsGenerating(true);
+    
+    try {
+      const invoiceId = generateInvoicePDF(data, currentIssuer, seriesNumber);
+
+      const savedInvoice: SavedInvoice = {
+        ...data,
+        invoiceId,
+        userId: currentUser.id,
+        createdAt: new Date().toISOString(),
+        total: total,
+        issuer: currentIssuer || undefined
+      };
+      storage.saveInvoice(savedInvoice);
+
+      const nextNum = (parseInt(seriesNumber) + 1).toString().padStart(4, '0');
+      const updatedIssuer = { ...(currentIssuer || issuer), nextInvoiceNumber: nextNum };
+      setIssuer(updatedIssuer);
+      storage.saveIssuerData(updatedIssuer);
+
+      await speakInvoiceSummary(`Factura generada con éxito.`);
+      alert(`Factura ${seriesNumber} descargada.`);
+    } catch (err) {
+      console.error(err);
+      alert("Error al generar PDF.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleDeleteHistory = (id: string) => {
+    if (window.confirm("¿Estás seguro de que deseas eliminar esta factura?")) {
+      storage.deleteInvoice(id);
+      setHistory(storage.getInvoices());
+      speakInvoiceSummary("Registro eliminado.");
+    }
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-indigo-50 flex items-center justify-center p-6">
+        <div className="bg-white p-8 rounded-[3rem] shadow-2xl w-full max-w-md animate-in">
+          <div className="flex flex-col items-center gap-4 mb-8">
+            <div className="bg-indigo-600 p-4 rounded-3xl text-white shadow-xl rotate-3">
+              <Receipt size={44} />
+            </div>
+            <div className="text-center">
+              <h1 className="text-3xl font-black text-indigo-950 tracking-tight">FactuMovil</h1>
+              <p className="text-gray-400 text-sm font-semibold uppercase tracking-widest mt-1">Gestión Empresarial</p>
+            </div>
+          </div>
+          <form onSubmit={handleLogin} className="flex flex-col gap-5">
+            <Input 
+              label="Email de la Empresa" 
+              type="email" 
+              placeholder="correo@empresa.com"
+              value={loginForm.email}
+              onChange={(e) => setLoginForm(p => ({ ...p, email: e.target.value }))}
+            />
+            <div className="flex flex-col gap-1">
+              <Input 
+                label="Contraseña" 
+                type="password" 
+                placeholder="••••••••"
+                value={loginForm.password}
+                onChange={(e) => setLoginForm(p => ({ ...p, password: e.target.value }))}
+              />
+              <button 
+                type="button"
+                onClick={handleRecoverPassword}
+                className="text-right text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-2 hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+            <button 
+              type="submit"
+              className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all mt-2"
+            >
+              Entrar al Panel
+            </button>
+          </form>
+          <div className="mt-8 pt-6 border-t border-gray-50 text-center">
+             <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Acceso Restringido</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const renderAdmin = () => (
+    <div className="flex flex-col gap-8 animate-in">
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="text-indigo-600" size={24} />
+          <h2 className="text-xl font-black text-indigo-950">Administración</h2>
+        </div>
+        
+        <form onSubmit={handleCreateUser} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col gap-4">
+          <div className="flex items-center gap-2 mb-2">
+             <UserPlus size={18} className="text-indigo-500" />
+             <h3 className="font-bold text-gray-700 text-xs uppercase tracking-wider">Alta de Nueva Empresa</h3>
+          </div>
+          <Input 
+            label="Email del Usuario" 
+            type="email" 
+            placeholder="usuario@nuevaempresa.com"
+            value={newUserForm.email}
+            onChange={(e) => setNewUserForm(p => ({ ...p, email: e.target.value }))}
+          />
+          <Input 
+            label="Contraseña Temporal" 
+            type="password" 
+            placeholder="Clave123"
+            value={newUserForm.password}
+            onChange={(e) => setNewUserForm(p => ({ ...p, password: e.target.value }))}
+          />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Permisos</label>
+            <select 
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"
+              value={newUserForm.role}
+              onChange={(e) => setNewUserForm(p => ({ ...p, role: e.target.value as any }))}
+            >
+              <option value="user">Usuario Estándar (Empresa)</option>
+              <option value="admin">Administrador del Sistema</option>
+            </select>
+          </div>
+          <button type="submit" className="bg-indigo-600 text-white font-bold py-4 rounded-xl mt-2 shadow-lg shadow-indigo-100">Crear y Notificar</button>
+        </form>
+
+        <div className="flex flex-col gap-3">
+           <h3 className="font-bold text-gray-700 text-xs uppercase tracking-wider px-2">Listado de Usuarios ({allUsers.length})</h3>
+           {allUsers.map(u => (
+             <div key={u.id} className="bg-white p-5 rounded-2xl border border-gray-100 flex justify-between items-center shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${u.role === 'admin' ? 'bg-indigo-100 text-indigo-600' : 'bg-green-100 text-green-600'}`}>
+                    {u.role === 'admin' ? <ShieldCheck size={20} /> : <UserIcon size={20} />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-800 text-sm">{u.email}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">ID: {u.id.slice(0, 8)} • {new Date(u.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                {u.id !== currentUser.id && (
+                  <button onClick={() => {
+                    if(confirm("¿Borrar usuario?")) {
+                      storage.deleteUser(u.id);
+                      setAllUsers(storage.getAllUsers());
+                    }
+                  }} className="text-gray-300 hover:text-red-500 p-2"><Trash2 size={20} /></button>
+                )}
+             </div>
+           ))}
+        </div>
+      </section>
+    </div>
+  );
+
+  const renderSettings = () => (
+    <div className="flex flex-col gap-8 animate-in">
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
+          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Perfil de Usuario</h2>
+        </div>
+        <div className="bg-indigo-600 text-white p-6 rounded-[2rem] shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <UserIcon size={80} />
+          </div>
+          <div className="relative z-10">
+            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Datos de Sesión</p>
+            <p className="text-xl font-black mt-1 break-all">{currentUser.email}</p>
+            <div className="flex items-center gap-2 mt-4">
+              <span className="text-[10px] bg-white/20 px-3 py-1 rounded-full font-black uppercase">{currentUser.role}</span>
+              <span className="text-[10px] text-indigo-200 font-bold">Registro: {new Date(currentUser.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
+          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Configuración de Emisor</h2>
+        </div>
+        
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-4">
+          <Input 
+            label="Número Próxima Factura" 
+            placeholder="0001" 
+            value={issuer.nextInvoiceNumber}
+            onChange={(e) => handleIssuerChange('nextInvoiceNumber', e.target.value)}
+          />
+          <Input label="Razón Social" value={issuer.name} onChange={(e) => handleIssuerChange('name', e.target.value)} />
+          <Input label="CIF / DNI" value={issuer.idNumber} onChange={(e) => handleIssuerChange('idNumber', e.target.value)} />
+          <Input label="Dirección Fiscal" value={issuer.address} onChange={(e) => handleIssuerChange('address', e.target.value)} />
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="C. Postal" value={issuer.postalCode} onChange={(e) => handleIssuerChange('postalCode', e.target.value)} />
+            <Input label="Ciudad" value={issuer.city} onChange={(e) => handleIssuerChange('city', e.target.value)} />
+          </div>
+          <Input label="Teléfono" type="tel" value={issuer.phone} onChange={(e) => handleIssuerChange('phone', e.target.value)} />
+          <Input label="Email de Factura" type="email" value={issuer.email} onChange={(e) => handleIssuerChange('email', e.target.value)} />
+
+          <button 
+            onClick={saveIssuerSettings}
+            className="w-full bg-indigo-600 text-white flex items-center justify-center gap-2 py-4 rounded-2xl font-bold mt-2 shadow-lg active:scale-95 transition-all"
+          >
+            <Save size={20} /> Guardar Datos
+          </button>
+        </div>
+        <button onClick={handleLogout} className="flex items-center justify-center gap-2 text-red-500 font-black text-xs uppercase tracking-widest py-6 border-t border-gray-100 mt-2">
+          <LogOut size={18} /> Salir de la Aplicación
+        </button>
+      </section>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <header className="bg-indigo-600 text-white p-6 sticky top-0 z-10 shadow-xl rounded-b-[2.5rem]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md">
+              <Receipt size={24} />
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight">FactuMovil</h1>
+              <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest">
+                {activeTab === 'create' ? 'Generar' : activeTab === 'history' ? 'Historial' : activeTab === 'settings' ? 'Perfil' : 'Admin'}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <button 
+              onClick={() => speakInvoiceSummary("Ayuda activada.")}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <Volume2 size={24} />
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors text-red-200"
+              title="Cerrar Sesión"
+            >
+              <LogOut size={24} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="px-5 py-8 flex flex-col max-w-lg mx-auto w-full pb-40">
+        {activeTab === 'create' && (
+          <div className="flex flex-col gap-8 animate-in">
+             <section className="flex flex-col gap-4">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
+                    <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Cliente</h2>
+                  </div>
+                  <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full border border-indigo-100">
+                    S-2025-{issuer.nextInvoiceNumber || '0001'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  <Input label="Nombre o Razón Social" placeholder="Empresa Cliente S.L." value={data.customerName} onChange={(e) => handleInputChange('customerName', e.target.value)} />
+                  <Input label="CIF / DNI" placeholder="00000000X" value={data.idNumber} onChange={(e) => handleInputChange('idNumber', e.target.value)} />
+                  <Input label="Dirección" placeholder="Av. Principal 45" value={data.address} onChange={(e) => handleInputChange('address', e.target.value)} />
+                  <Input label="C. Postal" placeholder="28001" value={data.postalCode} onChange={(e) => handleInputChange('postalCode', e.target.value)} />
+                </div>
+              </section>
+
+              <section className="flex flex-col gap-4">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
+                    <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Líneas de Factura</h2>
+                  </div>
+                  <button onClick={addItem} className="flex items-center gap-1 text-[10px] font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-full uppercase tracking-tighter"><Plus size={14} /> Añadir Línea</button>
+                </div>
+                {data.items.map((item, index) => (
+                  <div key={item.id} className="relative bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-4">
+                    <div className="absolute -top-2 -left-2 bg-indigo-600 text-white text-[10px] font-bold h-6 w-6 rounded-full flex items-center justify-center shadow-lg">{index + 1}</div>
+                    {data.items.length > 1 && <button onClick={() => removeItem(item.id)} className="absolute top-4 right-4 text-gray-200 hover:text-red-400"><Trash2 size={20} /></button>}
+                    <Input label="Descripción del Trabajo" placeholder="Servicios realizados..." value={item.concept} onChange={(e) => handleItemChange(item.id, 'concept', e.target.value)} />
+                    <Input label="Precio (€)" type="number" placeholder="0.00" value={item.amount || ''} onChange={(e) => handleItemChange(item.id, 'amount', parseFloat(e.target.value) || 0)} />
+                  </div>
+                ))}
+              </section>
+
+              <section className="bg-indigo-950 text-white p-7 rounded-[2.5rem] shadow-2xl flex flex-col gap-3">
+                <div className="flex justify-between items-center text-xs text-indigo-300 font-bold uppercase tracking-widest"><span>Base Imponible</span><span>{subtotal.toFixed(2)} €</span></div>
+                <div className="flex justify-between items-center text-xs text-indigo-300 font-bold uppercase tracking-widest">
+                  <div className="flex items-center gap-2">
+                    <span>IVA (%)</span>
+                    <input type="number" className="bg-indigo-900 border border-indigo-800 rounded px-2 py-0.5 w-14 text-right text-white font-black" value={data.ivaPercentage} onChange={(e) => handleInputChange('ivaPercentage', parseFloat(e.target.value) || 0)} />
+                  </div>
+                  <span>{ivaAmount.toFixed(2)} €</span>
+                </div>
+                <div className="flex justify-between items-center pt-3 border-t border-indigo-900"><span className="text-sm font-black text-indigo-200 uppercase tracking-widest">Total Factura</span><span className="text-3xl font-black text-indigo-400">{total.toFixed(2)} €</span></div>
+              </section>
+          </div>
+        )}
+        {activeTab === 'history' && (
+          <div className="flex flex-col gap-4 animate-in">
+            <div className="flex items-center gap-2 mb-2 px-2">
+              <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
+              <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Registro de Facturas</h2>
+            </div>
+            {history.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-gray-300 gap-4">
+                <Mail size={48} className="opacity-20" />
+                <p className="font-bold text-sm">Sin historial de emisiones</p>
+              </div>
+            ) : history.map(inv => (
+              <div key={inv.invoiceId} className="bg-white p-5 rounded-3xl border border-gray-100 flex justify-between items-center shadow-sm">
+                <div>
+                  <h3 className="font-bold text-gray-800">{inv.customerName}</h3>
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-black uppercase mt-1">
+                    <span className="text-indigo-600 font-mono">#{inv.invoiceId}</span>
+                    <span>•</span>
+                    <span>{new Date(inv.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-xl font-black text-indigo-600 mt-2">{inv.total.toFixed(2)}€</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => generateInvoicePDF(inv, inv.issuer || null, inv.invoiceId)} className="bg-indigo-600 text-white p-3 rounded-2xl shadow-lg shadow-indigo-100"><Download size={20} /></button>
+                  <button onClick={() => handleDeleteHistory(inv.invoiceId)} className="p-3 text-gray-300 hover:text-red-500"><Trash2 size={20} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {activeTab === 'settings' && renderSettings()}
+        {activeTab === 'admin' && currentUser.role === 'admin' && renderAdmin()}
+      </main>
+
+      <nav className="fixed bottom-0 left-0 right-0 z-20 flex flex-col items-center">
+        {activeTab === 'create' && (
+          <div className="w-full px-5 mb-4 max-w-lg">
+             <button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className={`w-full flex items-center justify-center gap-3 py-5 rounded-3xl font-black text-lg shadow-2xl transition-all active:scale-95 ${
+                isGenerating ? 'bg-gray-400 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200'
+              }`}
+            >
+              {isGenerating ? (
+                <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <><Download size={24} /> DESCARGAR PDF {issuer.nextInvoiceNumber}</>
+              )}
+            </button>
+          </div>
+        )}
+
+        <footer className="w-full bg-white/90 backdrop-blur-2xl border-t border-gray-100 flex items-center justify-around py-5 px-6 rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
+          <button onClick={resetForm} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'create' ? 'text-indigo-600 scale-110' : 'text-gray-400'}`}>
+            <FilePlus2 size={26} strokeWidth={activeTab === 'create' ? 2.5 : 2} />
+            <span className="text-[9px] font-black uppercase tracking-widest">Nueva</span>
+          </button>
+          <button onClick={() => setActiveTab('history')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'history' ? 'text-indigo-600 scale-110' : 'text-gray-400'}`}>
+            <History size={26} strokeWidth={activeTab === 'history' ? 2.5 : 2} />
+            <span className="text-[9px] font-black uppercase tracking-widest">Emitidas</span>
+          </button>
+          <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'settings' ? 'text-indigo-600 scale-110' : 'text-gray-400'}`}>
+            <Building2 size={26} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
+            <span className="text-[9px] font-black uppercase tracking-widest">Empresa</span>
+          </button>
+          {currentUser.role === 'admin' && (
+            <button onClick={() => setActiveTab('admin')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'admin' ? 'text-indigo-600 scale-110' : 'text-gray-400'}`}>
+              <ShieldCheck size={26} strokeWidth={activeTab === 'admin' ? 2.5 : 2} />
+              <span className="text-[9px] font-black uppercase tracking-widest">Admin</span>
+            </button>
+          )}
+        </footer>
+      </nav>
+    </div>
+  );
+};
+
+export default App;
