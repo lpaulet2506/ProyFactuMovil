@@ -1,4 +1,7 @@
 
+export type DocumentType = 'invoice' | 'quote' | 'receipt';
+export type PDFModel = 'model1' | 'model2';
+
 export interface InvoiceItem {
   id: string;
   concept: string;
@@ -6,12 +9,15 @@ export interface InvoiceItem {
 }
 
 export interface InvoiceData {
+  type: DocumentType;
+  pdfModel: PDFModel;
   customerName: string;
   idNumber: string;
   address: string;
   postalCode: string;
   items: InvoiceItem[];
   ivaPercentage: number;
+  includeIvaInQuote?: boolean;
 }
 
 export interface IssuerData {
@@ -22,7 +28,8 @@ export interface IssuerData {
   city: string;
   phone: string;
   email: string;
-  nextInvoiceNumber: string; // New field for series control
+  nextInvoiceNumber: string;
+  logo?: string; // Base64 string of the company logo
 }
 
 export type UserRole = 'admin' | 'user';
@@ -40,5 +47,5 @@ export interface SavedInvoice extends InvoiceData {
   createdAt: string;
   total: number;
   issuer?: IssuerData;
-  userId: string; // Multi-tenant support
+  userId: string;
 }

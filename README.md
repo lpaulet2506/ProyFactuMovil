@@ -6,7 +6,7 @@
 
 This contains everything you need to run your app locally.
 
-View your app in AI Studio: https://ai.studio/apps/drive/17-Z09oSf2uLMuUgGQAXN6jnvmGLaUvrU
+View your app in AI Studio: https://ai.studio/apps/b6510665-ce9f-4b34-a96f-833a4d39d2b8
 
 ## Run Locally
 

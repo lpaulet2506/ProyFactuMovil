@@ -6,7 +6,6 @@ const ISSUER_PREFIX = 'factumovil_issuer_';
 const USERS_KEY = 'factumovil_users';
 const SESSION_KEY = 'factumovil_session';
 
-// Simulación de servicio de correo (Backend)
 export const emailService = {
   sendWelcomeEmail: (email: string) => {
     console.log(`%c [BACKEND] Enviando correo de bienvenida a: ${email}`, 'color: #4f46e5; font-weight: bold;');
@@ -79,18 +78,35 @@ export const storage = {
     return JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
   },
 
-  addUser: (user: User) => {
+  addUser: (user: User, initialIssuer?: Partial<IssuerData>) => {
     const users = storage.getAllUsers();
     if (users.some(u => u.email === user.email)) throw new Error("El usuario ya existe.");
     users.push(user);
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    // Notificamos al "backend" para enviar correo
+    
+    // If admin provided a logo or initial data, save it for the new user
+    if (initialIssuer) {
+      const defaultIssuer: IssuerData = {
+        name: '',
+        idNumber: '',
+        address: '',
+        postalCode: '',
+        city: '',
+        phone: '',
+        email: user.email,
+        nextInvoiceNumber: '0001',
+        ...initialIssuer
+      };
+      localStorage.setItem(ISSUER_PREFIX + user.id, JSON.stringify(defaultIssuer));
+    }
+
     emailService.sendWelcomeEmail(user.email);
   },
 
   deleteUser: (id: string) => {
     const users = storage.getAllUsers().filter(u => u.id !== id);
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    localStorage.removeItem(ISSUER_PREFIX + id);
   },
 
   saveInvoice: (invoice: SavedInvoice) => {
@@ -117,7 +133,15 @@ export const storage = {
   saveIssuerData: (data: IssuerData) => {
     const user = storage.getCurrentUser();
     if (!user) return;
-    localStorage.setItem(ISSUER_PREFIX + user.id, JSON.stringify(data));
+    try {
+      localStorage.setItem(ISSUER_PREFIX + user.id, JSON.stringify(data));
+    } catch (e) {
+      console.error("Error saving issuer data to localStorage:", e);
+      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+        throw new Error("No hay espacio suficiente en el dispositivo para guardar el logo. Intenta con una imagen más pequeña.");
+      }
+      throw new Error("Error al guardar los datos de la empresa.");
+    }
   },
 
   getIssuerData: (): IssuerData | null => {

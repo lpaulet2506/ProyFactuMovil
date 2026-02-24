@@ -1,7 +1,5 @@
 {
   "name": "FactuMovil - Generador de Facturas",
-  "description": "Una aplicación móvil intuitiva para generar y descargar facturas en PDF rápidamente, con asistencia de voz integrada.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "description": "Una aplicación móvil intuitiva para generar y descargar facturas en PDF rápidamente.",
+  "requestFramePermissions": []
 }
