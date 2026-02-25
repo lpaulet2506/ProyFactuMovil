@@ -12,7 +12,7 @@ const App: React.FC = () => {
   const [history, setHistory] = useState<SavedInvoice[]>([]);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState<string | null>(null);
-  
+
   const initialInvoiceState: InvoiceData = {
     type: 'invoice',
     pdfModel: 'model1',
@@ -27,7 +27,7 @@ const App: React.FC = () => {
 
   const [data, setData] = useState<InvoiceData>(initialInvoiceState);
   const [showTypeSelector, setShowTypeSelector] = useState(false);
-  
+
   const [issuer, setIssuer] = useState<IssuerData>({
     name: '',
     idNumber: '',
@@ -45,11 +45,11 @@ const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [newUserForm, setNewUserForm] = useState({ 
-    email: '', 
-    password: '', 
+  const [newUserForm, setNewUserForm] = useState({
+    email: '',
+    password: '',
     role: 'user' as const,
-    logo: '' 
+    logo: ''
   });
   const [profileForm, setProfileForm] = useState({
     email: currentUser?.email || '',
@@ -70,13 +70,13 @@ const App: React.FC = () => {
           const invoices = await storage.getInvoices();
           console.log("Invoices loaded:", invoices.length);
           setHistory(Array.isArray(invoices) ? invoices : []);
-          
+
           const savedIssuer = await storage.getIssuerData();
           console.log("Issuer data loaded:", savedIssuer ? "YES" : "NO");
           if (savedIssuer) {
             setIssuer(savedIssuer);
           }
-          
+
           if (currentUser.role === 'admin') {
             const users = await storage.getAllUsers();
             setAllUsers(Array.isArray(users) ? users : []);
@@ -186,7 +186,6 @@ const App: React.FC = () => {
     const missing = [];
     if (!issuer.name?.trim()) missing.push("Razón Social");
     if (!issuer.idNumber?.trim()) missing.push("CIF/DNI");
-    if (!issuer.address?.trim()) missing.push("Dirección Fiscal");
     if (!issuer.email?.trim()) missing.push("Email");
 
     if (missing.length > 0) {
@@ -242,10 +241,10 @@ const App: React.FC = () => {
   const handleGenerate = async () => {
     console.log("handleGenerate called", { customerName: data.customerName, type: data.type });
     setShowValidationErrors(true);
-    
+
     const missingFields: string[] = [];
     if (!data.customerName?.trim()) missingFields.push("Nombre del Cliente");
-    
+
     if (data.type === 'quote') {
       if (!data.address?.trim()) missingFields.push("Dirección");
     } else {
@@ -276,19 +275,19 @@ const App: React.FC = () => {
       return;
     }
 
-    const seriesNumber = data.type === 'invoice' 
-      ? issuer.nextInvoiceNumber 
-      : data.type === 'quote' 
-        ? issuer.nextQuoteNumber 
+    const seriesNumber = data.type === 'invoice'
+      ? issuer.nextInvoiceNumber
+      : data.type === 'quote'
+        ? issuer.nextQuoteNumber
         : issuer.nextReceiptNumber;
-    
+
     setIsGenerating(true);
-    
+
     try {
       console.log("Invoking generateInvoicePDF...");
       const docTypePrefix = data.type === 'invoice' ? 'F' : data.type === 'quote' ? 'C' : 'R';
       const fullInvoiceId = `${docTypePrefix}-${seriesNumber || '0001'}`;
-      
+
       const invoiceId = generateInvoicePDF(data, issuer, fullInvoiceId);
       console.log("PDF generation successful, ID:", invoiceId);
 
@@ -300,7 +299,7 @@ const App: React.FC = () => {
         total: total,
         issuer: issuer
       };
-      
+
       console.log("Saving invoice to storage...");
       await storage.saveInvoice(savedInvoice);
       setHistory(prev => [savedInvoice, ...(Array.isArray(prev) ? prev : [])]);
@@ -347,28 +346,28 @@ const App: React.FC = () => {
             </div>
           </div>
           <form onSubmit={handleLogin} className="flex flex-col gap-5">
-            <Input 
-              label="Email de la Empresa" 
-              type="email" 
+            <Input
+              label="Email de la Empresa"
+              type="email"
               placeholder="correo@empresa.com"
               value={loginForm.email}
               onChange={(e) => {
                 setLoginForm(p => ({ ...p, email: e.target.value }));
-                if(loginError) setLoginError(null);
+                if (loginError) setLoginError(null);
               }}
             />
             <div className="flex flex-col gap-1">
-              <Input 
-                label="Contraseña" 
-                type="password" 
+              <Input
+                label="Contraseña"
+                type="password"
                 placeholder="••••••••"
                 value={loginForm.password}
                 onChange={(e) => {
                   setLoginForm(p => ({ ...p, password: e.target.value }));
-                  if(loginError) setLoginError(null);
+                  if (loginError) setLoginError(null);
                 }}
               />
-              <button 
+              <button
                 type="button"
                 onClick={handleRecoverPassword}
                 className="text-right text-[10px] text-indigo-600 font-bold uppercase tracking-wider mt-2 hover:underline"
@@ -376,7 +375,7 @@ const App: React.FC = () => {
                 ¿Olvidaste tu contraseña?
               </button>
             </div>
-            
+
             {loginError && (
               <div className="bg-red-50 border border-red-100 p-3 rounded-xl flex items-center gap-2 text-red-600 text-xs font-bold animate-in">
                 <AlertCircle size={16} />
@@ -384,25 +383,25 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <button 
+            <button
               type="submit"
               className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all mt-2"
             >
               Entrar al Panel
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => {
                 localStorage.clear();
                 window.location.reload();
-              }} 
+              }}
               className="w-full text-gray-300 text-[10px] font-black uppercase tracking-widest text-center mt-4 border-t border-gray-50 pt-4"
             >
               Limpiar Sesión y Reintentar
             </button>
           </form>
           <div className="mt-8 pt-6 border-t border-gray-50 text-center">
-             <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Acceso Restringido</p>
+            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Acceso Restringido</p>
           </div>
         </div>
       </div>
@@ -416,58 +415,58 @@ const App: React.FC = () => {
           <ShieldCheck className="text-indigo-600" size={24} />
           <h2 className="text-xl font-black text-indigo-950">Administración</h2>
         </div>
-        
+
         <form onSubmit={handleCreateUser} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col gap-4">
           <div className="flex items-center gap-2 mb-2">
-             <UserPlus size={18} className="text-indigo-500" />
-             <h3 className="font-bold text-gray-700 text-xs uppercase tracking-wider">Alta de Nueva Empresa</h3>
-          </div>
-          
-          <div className="flex flex-col items-center gap-2 mb-2">
-             <div className="w-20 h-20 rounded-2xl bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden relative group">
-                {newUserForm.logo ? (
-                  <>
-                    <img src={newUserForm.logo} className="w-full h-full object-contain" />
-                    <button 
-                      type="button"
-                      onClick={() => setNewUserForm(p => ({ ...p, logo: '' }))}
-                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
-                    >
-                      <X size={20} />
-                    </button>
-                  </>
-                ) : (
-                  <ImageIcon className="text-gray-300" size={32} />
-                )}
-             </div>
-             <label className="text-[10px] font-black uppercase text-indigo-600 cursor-pointer bg-indigo-50 px-3 py-1 rounded-full">
-                Cargar Logo
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={(e) => handleFileChange(e, (base64) => setNewUserForm(p => ({ ...p, logo: base64 })))} 
-                />
-             </label>
+            <UserPlus size={18} className="text-indigo-500" />
+            <h3 className="font-bold text-gray-700 text-xs uppercase tracking-wider">Alta de Nueva Empresa</h3>
           </div>
 
-          <Input 
-            label="Email del Usuario" 
-            type="email" 
+          <div className="flex flex-col items-center gap-2 mb-2">
+            <div className="w-20 h-20 rounded-2xl bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden relative group">
+              {newUserForm.logo ? (
+                <>
+                  <img src={newUserForm.logo} className="w-full h-full object-contain" />
+                  <button
+                    type="button"
+                    onClick={() => setNewUserForm(p => ({ ...p, logo: '' }))}
+                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                  >
+                    <X size={20} />
+                  </button>
+                </>
+              ) : (
+                <ImageIcon className="text-gray-300" size={32} />
+              )}
+            </div>
+            <label className="text-[10px] font-black uppercase text-indigo-600 cursor-pointer bg-indigo-50 px-3 py-1 rounded-full">
+              Cargar Logo
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleFileChange(e, (base64) => setNewUserForm(p => ({ ...p, logo: base64 })))}
+              />
+            </label>
+          </div>
+
+          <Input
+            label="Email del Usuario"
+            type="email"
             placeholder="usuario@nuevaempresa.com"
             value={newUserForm.email}
             onChange={(e) => setNewUserForm(p => ({ ...p, email: e.target.value }))}
           />
-          <Input 
-            label="Contraseña Temporal" 
-            type="password" 
+          <Input
+            label="Contraseña Temporal"
+            type="password"
             placeholder="Clave123"
             value={newUserForm.password}
             onChange={(e) => setNewUserForm(p => ({ ...p, password: e.target.value }))}
           />
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Permisos</label>
-            <select 
+            <select
               className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-800 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"
               value={newUserForm.role}
               onChange={(e) => setNewUserForm(p => ({ ...p, role: e.target.value as any }))}
@@ -480,29 +479,29 @@ const App: React.FC = () => {
         </form>
 
         <div className="flex flex-col gap-3">
-           <h3 className="font-bold text-gray-700 text-xs uppercase tracking-wider px-2">Listado de Usuarios ({allUsers.length})</h3>
-           {allUsers.map(u => (
-             <div key={u.id} className="bg-white p-5 rounded-2xl border border-gray-100 flex justify-between items-center shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${u.role === 'admin' ? 'bg-indigo-100 text-indigo-600' : 'bg-green-100 text-green-600'}`}>
-                    {u.role === 'admin' ? <ShieldCheck size={20} /> : <UserIcon size={20} />}
-                  </div>
-                  <div>
-                    <p className="font-bold text-gray-800 text-sm">{u.email}</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase">ID: {u.id.slice(0, 8)} • {new Date(u.createdAt).toLocaleDateString()}</p>
-                  </div>
+          <h3 className="font-bold text-gray-700 text-xs uppercase tracking-wider px-2">Listado de Usuarios ({allUsers.length})</h3>
+          {allUsers.map(u => (
+            <div key={u.id} className="bg-white p-5 rounded-2xl border border-gray-100 flex justify-between items-center shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${u.role === 'admin' ? 'bg-indigo-100 text-indigo-600' : 'bg-green-100 text-green-600'}`}>
+                  {u.role === 'admin' ? <ShieldCheck size={20} /> : <UserIcon size={20} />}
                 </div>
-                {u.id !== currentUser.id && (
-                  <button onClick={async () => {
-                    if(confirm("¿Borrar usuario?")) {
-                      await storage.deleteUser(u.id);
-                      const users = await storage.getAllUsers();
-                      setAllUsers(users);
-                    }
-                  }} className="text-gray-300 hover:text-red-500 p-2"><Trash2 size={20} /></button>
-                )}
-             </div>
-           ))}
+                <div>
+                  <p className="font-bold text-gray-800 text-sm">{u.email}</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">ID: {u.id.slice(0, 8)} • {new Date(u.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+              {u.id !== currentUser.id && (
+                <button onClick={async () => {
+                  if (confirm("¿Borrar usuario?")) {
+                    await storage.deleteUser(u.id);
+                    const users = await storage.getAllUsers();
+                    setAllUsers(users);
+                  }
+                }} className="text-gray-300 hover:text-red-500 p-2"><Trash2 size={20} /></button>
+              )}
+            </div>
+          ))}
         </div>
       </section>
     </div>
@@ -528,26 +527,6 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
-
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-4">
-          <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Actualizar Acceso</h3>
-          <form onSubmit={handleUpdateProfile} className="flex flex-col gap-4">
-            <Input 
-              label="Nuevo Email" 
-              value={profileForm.email} 
-              onChange={(e) => setProfileForm(p => ({ ...p, email: e.target.value }))} 
-            />
-            <Input 
-              label="Nueva Contraseña (dejar en blanco para no cambiar)" 
-              type="password" 
-              value={profileForm.password} 
-              onChange={(e) => setProfileForm(p => ({ ...p, password: e.target.value }))} 
-            />
-            <button type="submit" className="bg-indigo-50 text-indigo-600 py-3 rounded-2xl text-xs font-bold hover:bg-indigo-100 transition-colors">
-              Actualizar Perfil
-            </button>
-          </form>
-        </div>
       </section>
 
       <section className="flex flex-col gap-4">
@@ -555,34 +534,34 @@ const App: React.FC = () => {
           <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
           <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Configuración de Emisor</h2>
         </div>
-        
+
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-6">
           <div className="flex flex-col items-center gap-3 border-b border-gray-50 pb-6">
-             <div className="w-24 h-24 rounded-[2rem] bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden relative group">
-                {issuer.logo ? (
-                  <>
-                    <img src={issuer.logo} className="w-full h-full object-contain" />
-                    <button 
-                      onClick={() => setIssuer(p => ({ ...p, logo: '' }))}
-                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
-                    >
-                      <Trash2 size={24} />
-                    </button>
-                  </>
-                ) : (
-                  <ImageIcon className="text-gray-300" size={40} />
-                )}
-             </div>
-             <label className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow-lg shadow-indigo-100 cursor-pointer active:scale-95 transition-all">
-                <ImageIcon size={16} /> {issuer.logo ? 'Cambiar Logo' : 'Subir Logo Empresa'}
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={(e) => handleFileChange(e, (base64) => handleIssuerChange('logo', base64))} 
-                />
-             </label>
-             <p className="text-[9px] text-gray-400 font-bold uppercase text-center">Formato PNG o JPG (Máx. 500KB)</p>
+            <div className="w-24 h-24 rounded-[2rem] bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden relative group">
+              {issuer.logo ? (
+                <>
+                  <img src={issuer.logo} className="w-full h-full object-contain" />
+                  <button
+                    onClick={() => setIssuer(p => ({ ...p, logo: '' }))}
+                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                  >
+                    <Trash2 size={24} />
+                  </button>
+                </>
+              ) : (
+                <ImageIcon className="text-gray-300" size={40} />
+              )}
+            </div>
+            <label className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow-lg shadow-indigo-100 cursor-pointer active:scale-95 transition-all">
+              <ImageIcon size={16} /> {issuer.logo ? 'Cambiar Logo' : 'Subir Logo Empresa'}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleFileChange(e, (base64) => handleIssuerChange('logo', base64))}
+              />
+            </label>
+            <p className="text-[9px] text-gray-400 font-bold uppercase text-center">Formato PNG o JPG (Máx. 500KB)</p>
           </div>
 
           <div className="grid gap-6">
@@ -592,27 +571,27 @@ const App: React.FC = () => {
                 <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Numeración de Documentación</h3>
               </div>
               <div className="grid grid-cols-3 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                <Input 
-                  label="Factura" 
-                  placeholder="0001" 
+                <Input
+                  label="Factura"
+                  placeholder="0001"
                   value={issuer.nextInvoiceNumber}
                   onChange={(e) => handleIssuerChange('nextInvoiceNumber', e.target.value)}
                 />
-                <Input 
-                  label="Cotización" 
-                  placeholder="0001" 
+                <Input
+                  label="Cotización"
+                  placeholder="0001"
                   value={issuer.nextQuoteNumber}
                   onChange={(e) => handleIssuerChange('nextQuoteNumber', e.target.value)}
                 />
-                <Input 
-                  label="Recibo" 
-                  placeholder="0001" 
+                <Input
+                  label="Recibo"
+                  placeholder="0001"
                   value={issuer.nextReceiptNumber}
                   onChange={(e) => handleIssuerChange('nextReceiptNumber', e.target.value)}
                 />
               </div>
             </div>
-            
+
             <Input label="Razón Social" value={issuer.name} onChange={(e) => handleIssuerChange('name', e.target.value)} />
             <Input label="CIF / DNI" value={issuer.idNumber} onChange={(e) => handleIssuerChange('idNumber', e.target.value)} />
             <Input label="Dirección Fiscal" value={issuer.address} onChange={(e) => handleIssuerChange('address', e.target.value)} />
@@ -623,7 +602,7 @@ const App: React.FC = () => {
             <Input label="Teléfono" type="tel" value={issuer.phone} onChange={(e) => handleIssuerChange('phone', e.target.value)} />
             <Input label="Email de Factura" type="email" value={issuer.email} onChange={(e) => handleIssuerChange('email', e.target.value)} />
 
-            <button 
+            <button
               onClick={saveIssuerSettings}
               className="w-full bg-indigo-600 text-white flex items-center justify-center gap-2 py-4 rounded-2xl font-bold mt-2 shadow-lg active:scale-95 transition-all"
             >
@@ -654,7 +633,7 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-1">
-            <button 
+            <button
               onClick={handleLogout}
               className="p-2 hover:bg-white/10 rounded-full transition-colors text-red-200"
               title="Cerrar Sesión"
@@ -668,146 +647,146 @@ const App: React.FC = () => {
       <main className="px-5 py-8 flex flex-col max-w-lg mx-auto w-full pb-40">
         {activeTab === 'create' && (
           <div className="flex flex-col gap-8 animate-in">
-             <section className="flex flex-col gap-4">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
-                    <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
-                      {data.type === 'invoice' ? 'Cliente' : data.type === 'quote' ? 'Solicitante' : 'Pagador'}
-                    </h2>
-                  </div>
-                  <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full border border-indigo-100">
-                    {data.type === 'invoice' ? 'F' : data.type === 'quote' ? 'C' : 'R'}-2025-{issuer.nextInvoiceNumber || '0001'}
-                  </span>
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
+                  <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                    {data.type === 'invoice' ? 'Cliente' : data.type === 'quote' ? 'Solicitante' : 'Pagador'}
+                  </h2>
                 </div>
-                <div className="grid grid-cols-1 gap-4">
-                  <Input 
-                    label="Nombre o Razón Social" 
-                    placeholder="Empresa Cliente S.L." 
-                    value={data.customerName} 
-                    onChange={(e) => handleInputChange('customerName', e.target.value)} 
+                <span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full border border-indigo-100">
+                  {data.type === 'invoice' ? 'F' : data.type === 'quote' ? 'C' : 'R'}-2025-{issuer.nextInvoiceNumber || '0001'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <Input
+                  label="Nombre o Razón Social"
+                  placeholder="Empresa Cliente S.L."
+                  value={data.customerName}
+                  onChange={(e) => handleInputChange('customerName', e.target.value)}
+                  required={true}
+                  error={showValidationErrors && !(data.customerName || '').trim()}
+                />
+                <Input
+                  label="CIF / DNI"
+                  placeholder="00000000X"
+                  value={data.idNumber}
+                  onChange={(e) => handleInputChange('idNumber', e.target.value)}
+                  required={data.type !== 'quote'}
+                  error={showValidationErrors && data.type !== 'quote' && !(data.idNumber || '').trim()}
+                />
+                <Input
+                  label="Dirección"
+                  placeholder="Av. Principal 45"
+                  value={data.address}
+                  onChange={(e) => handleInputChange('address', e.target.value)}
+                  required={true}
+                  error={showValidationErrors && !(data.address || '').trim()}
+                />
+                <Input
+                  label="C. Postal"
+                  placeholder="28001"
+                  value={data.postalCode}
+                  onChange={(e) => handleInputChange('postalCode', e.target.value)}
+                  required={data.type !== 'quote'}
+                  error={showValidationErrors && data.type !== 'quote' && !(data.postalCode || '').trim()}
+                />
+              </div>
+              {data.type === 'quote' && (
+                <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm mt-2">
+                  <input
+                    type="checkbox"
+                    id="plusIva"
+                    checked={data.includeIvaInQuote}
+                    onChange={(e) => handleInputChange('includeIvaInQuote', e.target.checked)}
+                    className="w-5 h-5 rounded-lg border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label htmlFor="plusIva" className="text-sm font-bold text-gray-700 cursor-pointer">
+                    Incluir frase "Precio más IVA"
+                  </label>
+                </div>
+              )}
+            </section>
+
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
+                  <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Líneas de Factura</h2>
+                </div>
+              </div>
+              {data.items.map((item, index) => (
+                <div key={item.id} className="relative bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-4">
+                  <div className="absolute -top-2 -left-2 bg-indigo-600 text-white text-[10px] font-bold h-6 w-6 rounded-full flex items-center justify-center shadow-lg">{index + 1}</div>
+                  {data.items.length > 1 && <button onClick={() => removeItem(item.id)} className="absolute top-4 right-4 text-gray-200 hover:text-red-400"><Trash2 size={20} /></button>}
+                  <Input
+                    label="Descripción del Trabajo"
+                    placeholder="Servicios realizados..."
+                    value={item.concept}
+                    onChange={(e) => handleItemChange(item.id, 'concept', e.target.value)}
                     required={true}
-                    error={showValidationErrors && !(data.customerName || '').trim()}
+                    error={showValidationErrors && !(item.concept || '').trim()}
                   />
-                  <Input 
-                    label="CIF / DNI" 
-                    placeholder="00000000X" 
-                    value={data.idNumber} 
-                    onChange={(e) => handleInputChange('idNumber', e.target.value)} 
-                    required={data.type !== 'quote'}
-                    error={showValidationErrors && data.type !== 'quote' && !(data.idNumber || '').trim()}
-                  />
-                  <Input 
-                    label="Dirección" 
-                    placeholder="Av. Principal 45" 
-                    value={data.address} 
-                    onChange={(e) => handleInputChange('address', e.target.value)} 
+                  <Input
+                    label="Precio (€)"
+                    type="number"
+                    placeholder="0.00"
+                    value={item.amount || ''}
+                    onChange={(e) => handleItemChange(item.id, 'amount', parseFloat(e.target.value) || 0)}
                     required={true}
-                    error={showValidationErrors && !(data.address || '').trim()}
-                  />
-                  <Input 
-                    label="C. Postal" 
-                    placeholder="28001" 
-                    value={data.postalCode} 
-                    onChange={(e) => handleInputChange('postalCode', e.target.value)} 
-                    required={data.type !== 'quote'}
-                    error={showValidationErrors && data.type !== 'quote' && !(data.postalCode || '').trim()}
+                    error={showValidationErrors && (Number(item.amount) || 0) <= 0}
                   />
                 </div>
-                {data.type === 'quote' && (
-                  <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm mt-2">
-                    <input 
-                      type="checkbox" 
-                      id="plusIva"
-                      checked={data.includeIvaInQuote}
-                      onChange={(e) => handleInputChange('includeIvaInQuote', e.target.checked)}
-                      className="w-5 h-5 rounded-lg border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <label htmlFor="plusIva" className="text-sm font-bold text-gray-700 cursor-pointer">
-                      Incluir frase "Precio más IVA"
-                    </label>
-                  </div>
-                )}
-              </section>
+              ))}
+              <button onClick={addItem} className="flex items-center justify-center gap-2 w-full py-4 border-2 border-dashed border-indigo-100 rounded-3xl text-indigo-600 font-bold text-sm hover:bg-indigo-50 transition-colors">
+                <Plus size={18} /> Añadir Línea
+              </button>
+            </section>
 
-              <section className="flex flex-col gap-4">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
-                    <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Líneas de Factura</h2>
-                  </div>
+            <section className="bg-indigo-950 text-white p-7 rounded-[2.5rem] shadow-2xl flex flex-col gap-3">
+              <div className="flex flex-col gap-2 mb-4 border-b border-indigo-900 pb-4">
+                <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Modelo de Diseño</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleInputChange('pdfModel', 'model1')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${data.pdfModel === 'model1' ? 'bg-indigo-600 text-white' : 'bg-indigo-900/50 text-indigo-400'}`}
+                  >
+                    Modelo 1 (Clásico)
+                  </button>
+                  <button
+                    onClick={() => handleInputChange('pdfModel', 'model2')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${data.pdfModel === 'model2' ? 'bg-indigo-600 text-white' : 'bg-indigo-900/50 text-indigo-400'}`}
+                  >
+                    Modelo 2 (Moderno)
+                  </button>
                 </div>
-                {data.items.map((item, index) => (
-                  <div key={item.id} className="relative bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-4">
-                    <div className="absolute -top-2 -left-2 bg-indigo-600 text-white text-[10px] font-bold h-6 w-6 rounded-full flex items-center justify-center shadow-lg">{index + 1}</div>
-                    {data.items.length > 1 && <button onClick={() => removeItem(item.id)} className="absolute top-4 right-4 text-gray-200 hover:text-red-400"><Trash2 size={20} /></button>}
-                    <Input 
-                      label="Descripción del Trabajo" 
-                      placeholder="Servicios realizados..." 
-                      value={item.concept} 
-                      onChange={(e) => handleItemChange(item.id, 'concept', e.target.value)} 
-                      required={true}
-                      error={showValidationErrors && !(item.concept || '').trim()}
-                    />
-                    <Input 
-                      label="Precio (€)" 
-                      type="number" 
-                      placeholder="0.00" 
-                      value={item.amount || ''} 
-                      onChange={(e) => handleItemChange(item.id, 'amount', parseFloat(e.target.value) || 0)} 
-                      required={true}
-                      error={showValidationErrors && (Number(item.amount) || 0) <= 0}
-                    />
-                  </div>
-                ))}
-                <button onClick={addItem} className="flex items-center justify-center gap-2 w-full py-4 border-2 border-dashed border-indigo-100 rounded-3xl text-indigo-600 font-bold text-sm hover:bg-indigo-50 transition-colors">
-                  <Plus size={18} /> Añadir Línea
-                </button>
-              </section>
+              </div>
 
-              <section className="bg-indigo-950 text-white p-7 rounded-[2.5rem] shadow-2xl flex flex-col gap-3">
-                <div className="flex flex-col gap-2 mb-4 border-b border-indigo-900 pb-4">
-                  <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Modelo de Diseño</label>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => handleInputChange('pdfModel', 'model1')}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${data.pdfModel === 'model1' ? 'bg-indigo-600 text-white' : 'bg-indigo-900/50 text-indigo-400'}`}
-                    >
-                      Modelo 1 (Clásico)
-                    </button>
-                    <button 
-                      onClick={() => handleInputChange('pdfModel', 'model2')}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${data.pdfModel === 'model2' ? 'bg-indigo-600 text-white' : 'bg-indigo-900/50 text-indigo-400'}`}
-                    >
-                      Modelo 2 (Moderno)
-                    </button>
-                  </div>
-                </div>
-
-                {isInvoice && (
-                  <>
-                    <div className="flex justify-between items-center text-xs text-indigo-300 font-bold uppercase tracking-widest"><span>Base Imponible</span><span>{subtotal.toFixed(2)} €</span></div>
-                    <div className="flex justify-between items-center text-xs text-indigo-300 font-bold uppercase tracking-widest">
-                      <div className="flex items-center gap-2">
-                        <span>IVA (%)</span>
-                        <input type="number" className="bg-indigo-900 border border-indigo-800 rounded px-2 py-0.5 w-14 text-right text-white font-black" value={data.ivaPercentage} onChange={(e) => handleInputChange('ivaPercentage', parseFloat(e.target.value) || 0)} />
-                      </div>
-                      <span>{ivaAmount.toFixed(2)} €</span>
+              {isInvoice && (
+                <>
+                  <div className="flex justify-between items-center text-xs text-indigo-300 font-bold uppercase tracking-widest"><span>Base Imponible</span><span>{subtotal.toFixed(2)} €</span></div>
+                  <div className="flex justify-between items-center text-xs text-indigo-300 font-bold uppercase tracking-widest">
+                    <div className="flex items-center gap-2">
+                      <span>IVA (%)</span>
+                      <input type="number" className="bg-indigo-900 border border-indigo-800 rounded px-2 py-0.5 w-14 text-right text-white font-black" value={data.ivaPercentage} onChange={(e) => handleInputChange('ivaPercentage', parseFloat(e.target.value) || 0)} />
                     </div>
-                  </>
-                )}
-                <div className="flex flex-col gap-3 pt-3 border-t border-indigo-900">
-                  <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">
-                    {isInvoice ? 'Total Factura' : data.type === 'quote' ? 'Total Cotización' : 'Total Recibo'}
-                  </span>
-                  <div className="flex items-baseline justify-end gap-1">
-                    <span className="text-2xl font-black text-indigo-400">
-                      {total >= 100000 ? Math.floor(total).toLocaleString() : total.toFixed(2)}
-                    </span>
-                    <span className="text-lg font-bold text-indigo-500">€</span>
+                    <span>{ivaAmount.toFixed(2)} €</span>
                   </div>
+                </>
+              )}
+              <div className="flex flex-col gap-3 pt-3 border-t border-indigo-900">
+                <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">
+                  {isInvoice ? 'Total Factura' : data.type === 'quote' ? 'Total Cotización' : 'Total Recibo'}
+                </span>
+                <div className="flex items-baseline justify-end gap-1">
+                  <span className="text-2xl font-black text-indigo-400">
+                    {total >= 100000 ? Math.floor(total).toLocaleString() : total.toFixed(2)}
+                  </span>
+                  <span className="text-lg font-bold text-indigo-500">€</span>
                 </div>
-              </section>
+              </div>
+            </section>
           </div>
         )}
         {activeTab === 'history' && (
@@ -837,12 +816,12 @@ const App: React.FC = () => {
                   </div>
                   <p className="text-xl font-black text-indigo-600 mt-2">{inv.total.toFixed(2)}€</p>
                 </div>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex gap-2">
-                      <button onClick={() => generateInvoicePDF(inv, inv.issuer || null, inv.invoiceId)} className="bg-indigo-600 text-white p-3 rounded-2xl shadow-lg shadow-indigo-100"><Download size={20} /></button>
-                    </div>
-                    <button onClick={() => handleDeleteHistory(inv.invoiceId)} className="p-3 text-gray-300 hover:text-red-500"><Trash2 size={20} /></button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button onClick={() => generateInvoicePDF(inv, inv.issuer || null, inv.invoiceId)} className="bg-indigo-600 text-white p-3 rounded-2xl shadow-lg shadow-indigo-100"><Download size={20} /></button>
                   </div>
+                  <button onClick={() => handleDeleteHistory(inv.invoiceId)} className="p-3 text-gray-300 hover:text-red-500"><Trash2 size={20} /></button>
+                </div>
               </div>
             ))}
           </div>
@@ -857,9 +836,8 @@ const App: React.FC = () => {
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className={`w-full flex items-center justify-center gap-3 py-4 rounded-3xl font-black shadow-2xl transition-all active:scale-95 ${
-                isGenerating ? 'bg-gray-400 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200'
-              }`}
+              className={`w-full flex items-center justify-center gap-3 py-4 rounded-3xl font-black shadow-2xl transition-all active:scale-95 ${isGenerating ? 'bg-gray-400 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200'
+                }`}
             >
               {isGenerating ? (
                 <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
