@@ -149,17 +149,16 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
       if (issuer?.logo) {
         try {
           const format = issuer.logo.includes('image/jpeg') || issuer.logo.includes('image/jpg') ? 'JPEG' : 'PNG';
-          doc.addImage(issuer.logo, format, 15, 10, 30, 30);
+          doc.addImage(issuer.logo, format, 15, 10, 40, 40);
         } catch (e) {
           console.error("Error adding logo to PDF:", e);
         }
       }
 
       // Header
-      doc.setFontSize(24);
+      doc.setFontSize(26);
       doc.setTextColor(44, 88, 200); // Nuevo Azul solicitado
-      const headerX = issuer?.logo ? 120 : 105;
-      doc.text(title.toUpperCase(), headerX, 25, { align: issuer?.logo ? "left" : "center" });
+      doc.text(title.toUpperCase(), 105, 30, { align: "center" });
 
       // Invoice Meta
       doc.setTextColor(100, 100, 100);
@@ -168,7 +167,7 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
       doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 200, 20, { align: 'right' });
 
       // Columnas: Emisor vs Receptor
-      let yPos = 50;
+      let yPos = 60;
       
       // EMISOR (Tus datos)
       doc.setTextColor(40, 44, 52);
@@ -215,25 +214,28 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
 
       // Summary
       doc.setFontSize(10);
+      const summaryX = 115; // Moved further left to avoid overlap
       
       if (isInvoice) {
-        doc.text(`Subtotal:`, 140, finalY);
+        doc.text(`Subtotal:`, summaryX, finalY);
         doc.text(`${subtotal.toFixed(2)} €`, 195, finalY, { align: 'right' });
         
-        doc.text(`IVA (${data.ivaPercentage}%):`, 140, finalY + 7);
-        doc.text(`${ivaAmount.toFixed(2)} €`, 195, finalY + 7, { align: 'right' });
+        doc.text(`IVA (${data.ivaPercentage}%):`, summaryX, finalY + 8);
+        doc.text(`${ivaAmount.toFixed(2)} €`, 195, finalY + 8, { align: 'right' });
         
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(44, 88, 200);
-        doc.text(`TOTAL:`, 140, finalY + 18);
-        doc.text(`${total.toFixed(2)} €`, 195, finalY + 18, { align: 'right' });
+        doc.text(`TOTAL:`, summaryX, finalY + 20);
+        doc.text(`${total.toFixed(2)} €`, 195, finalY + 20, { align: 'right' });
       } else {
-        doc.setFontSize(14);
+        doc.setFontSize(12); // Reduced from 14
         doc.setFont("helvetica", "bold");
         doc.setTextColor(44, 88, 200);
         const totalLabel = data.type === 'quote' && data.includeIvaInQuote ? 'TOTAL (Precio más IVA):' : 'TOTAL:';
-        doc.text(totalLabel, 140, finalY);
+        // Move label further left if it's the long one
+        const labelX = totalLabel.includes('IVA') ? 90 : 115;
+        doc.text(totalLabel, labelX, finalY);
         doc.text(`${total.toFixed(2)} €`, 195, finalY, { align: 'right' });
       }
 

@@ -1,11 +1,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Download, Receipt, History, FilePlus2, Building2, Save, LogOut, ShieldCheck, UserPlus, User as UserIcon, Mail, Image as ImageIcon, X, AlertCircle, Volume2 } from 'lucide-react';
+import { Plus, Trash2, Download, Receipt, History, FilePlus2, Building2, Save, LogOut, ShieldCheck, UserPlus, User as UserIcon, Mail, Image as ImageIcon, X, AlertCircle } from 'lucide-react';
 import Input from './components/Input';
 import { InvoiceData, InvoiceItem, SavedInvoice, IssuerData, User } from './types';
 import { generateInvoicePDF } from './utils/pdfGenerator';
 import { storage, emailService } from './services/storage';
-import { speakInvoiceSummary } from './services/geminiTts';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(storage.getCurrentUser());
@@ -38,11 +37,12 @@ const App: React.FC = () => {
     phone: '',
     email: '',
     nextInvoiceNumber: '0001',
+    nextQuoteNumber: '0001',
+    nextReceiptNumber: '0001',
     logo: ''
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [newUserForm, setNewUserForm] = useState({ 
@@ -53,13 +53,20 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    if (currentUser) {
-      setHistory(storage.getInvoices());
-      const savedIssuer = storage.getIssuerData();
-      if (savedIssuer) setIssuer(savedIssuer);
-      if (currentUser.role === 'admin') setAllUsers(storage.getAllUsers());
-    }
-  }, [currentUser]); // Remove activeTab to prevent overwriting local state on tab switch
+    const loadData = async () => {
+      if (currentUser) {
+        const invoices = await storage.getInvoices();
+        setHistory(invoices);
+        const savedIssuer = await storage.getIssuerData();
+        if (savedIssuer) setIssuer(savedIssuer);
+        if (currentUser.role === 'admin') {
+          const users = await storage.getAllUsers();
+          setAllUsers(users);
+        }
+      }
+    };
+    loadData();
+  }, [currentUser]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, callback: (base64: string) => void) => {
     const file = e.target.files?.[0];
@@ -76,10 +83,10 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
-    const user = storage.login(loginForm.email, loginForm.password);
+    const user = await storage.login(loginForm.email, loginForm.password);
     if (user) {
       setCurrentUser(user);
     } else {
@@ -102,14 +109,14 @@ const App: React.FC = () => {
     alert(`Se ha enviado un correo de recuperación a: ${loginForm.email}`);
   };
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserForm.email || !newUserForm.password) {
       alert("Completa todos los campos obligatorios.");
       return;
     }
     try {
-      storage.addUser({
+      await storage.addUser({
         id: crypto.randomUUID(),
         email: newUserForm.email,
         password: newUserForm.password,
@@ -120,7 +127,8 @@ const App: React.FC = () => {
       });
       alert("Empresa creada con éxito.");
       setNewUserForm({ email: '', password: '', role: 'user', logo: '' });
-      setAllUsers(storage.getAllUsers());
+      const users = await storage.getAllUsers();
+      setAllUsers(users);
     } catch (err: any) {
       alert(err.message);
     }
@@ -134,7 +142,7 @@ const App: React.FC = () => {
     setIssuer(prev => ({ ...prev, [field]: value }));
   };
 
-  const saveIssuerSettings = () => {
+  const saveIssuerSettings = async () => {
     const missing = [];
     if (!issuer.name.trim()) missing.push("Razón Social");
     if (!issuer.idNumber.trim()) missing.push("CIF/DNI");
@@ -147,7 +155,7 @@ const App: React.FC = () => {
     }
 
     try {
-      storage.saveIssuerData(issuer);
+      await storage.saveIssuerData(issuer);
       alert("Datos de empresa actualizados correctamente.");
     } catch (err: any) {
       alert(err.message);
@@ -188,18 +196,6 @@ const App: React.FC = () => {
   const ivaAmount = isInvoice ? subtotal * (data.ivaPercentage / 100) : 0;
   const total = subtotal + ivaAmount;
 
-  const handleSpeak = async (invoice: SavedInvoice | InvoiceData) => {
-    setIsSpeaking(true);
-    const docType = invoice.type === 'invoice' ? 'Factura' : invoice.type === 'quote' ? 'Cotización' : 'Recibo';
-    const totalAmount = 'total' in invoice ? invoice.total : (calculateSubtotal() * (1 + (invoice.type === 'invoice' ? invoice.ivaPercentage / 100 : 0)));
-    const summary = `${docType} para ${invoice.customerName} por un total de ${totalAmount.toFixed(2)} euros.`;
-    try {
-      await speakInvoiceSummary(summary);
-    } finally {
-      setIsSpeaking(false);
-    }
-  };
-
   const handleGenerate = async () => {
     console.log("handleGenerate called", { customerName: data.customerName, type: data.type });
     setShowValidationErrors(true);
@@ -237,18 +233,25 @@ const App: React.FC = () => {
       return;
     }
 
-    const seriesNumber = issuer.nextInvoiceNumber || '0001';
+    const seriesNumber = data.type === 'invoice' 
+      ? issuer.nextInvoiceNumber 
+      : data.type === 'quote' 
+        ? issuer.nextQuoteNumber 
+        : issuer.nextReceiptNumber;
     
     setIsGenerating(true);
     
     try {
       console.log("Invoking generateInvoicePDF...");
-      const invoiceId = generateInvoicePDF(data, issuer, seriesNumber);
+      const docTypePrefix = data.type === 'invoice' ? 'F' : data.type === 'quote' ? 'C' : 'R';
+      const fullInvoiceId = `${docTypePrefix}-${seriesNumber || '0001'}`;
+      
+      const invoiceId = generateInvoicePDF(data, issuer, fullInvoiceId);
       console.log("PDF generation successful, ID:", invoiceId);
 
       const savedInvoice: SavedInvoice = {
         ...data,
-        invoiceId,
+        invoiceId: invoiceId,
         userId: currentUser.id,
         createdAt: new Date().toISOString(),
         total: total,
@@ -256,12 +259,17 @@ const App: React.FC = () => {
       };
       
       console.log("Saving invoice to storage...");
-      storage.saveInvoice(savedInvoice);
+      await storage.saveInvoice(savedInvoice);
+      setHistory(prev => [savedInvoice, ...prev]);
 
-      const nextNum = (parseInt(seriesNumber) + 1).toString().padStart(4, '0');
-      const updatedIssuer = { ...issuer, nextInvoiceNumber: nextNum };
+      const nextNum = (parseInt(seriesNumber || '0001') + 1).toString().padStart(4, '0');
+      const updatedIssuer = { ...issuer };
+      if (data.type === 'invoice') updatedIssuer.nextInvoiceNumber = nextNum;
+      else if (data.type === 'quote') updatedIssuer.nextQuoteNumber = nextNum;
+      else if (data.type === 'receipt') updatedIssuer.nextReceiptNumber = nextNum;
+
       setIssuer(updatedIssuer);
-      storage.saveIssuerData(updatedIssuer);
+      await storage.saveIssuerData(updatedIssuer);
 
       const docType = data.type === 'invoice' ? 'Factura' : data.type === 'quote' ? 'Cotización' : 'Recibo';
       alert(`${docType} ${seriesNumber} generada correctamente.`);
@@ -274,10 +282,11 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeleteHistory = (id: string) => {
+  const handleDeleteHistory = async (id: string) => {
     if (window.confirm("¿Estás seguro de que deseas eliminar esta factura?")) {
-      storage.deleteInvoice(id);
-      setHistory(storage.getInvoices());
+      await storage.deleteInvoice(id);
+      const invoices = await storage.getInvoices();
+      setHistory(invoices);
     }
   };
 
@@ -431,10 +440,11 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 {u.id !== currentUser.id && (
-                  <button onClick={() => {
+                  <button onClick={async () => {
                     if(confirm("¿Borrar usuario?")) {
-                      storage.deleteUser(u.id);
-                      setAllUsers(storage.getAllUsers());
+                      await storage.deleteUser(u.id);
+                      const users = await storage.getAllUsers();
+                      setAllUsers(users);
                     }
                   }} className="text-gray-300 hover:text-red-500 p-2"><Trash2 size={20} /></button>
                 )}
@@ -502,13 +512,34 @@ const App: React.FC = () => {
              <p className="text-[9px] text-gray-400 font-bold uppercase text-center">Formato PNG o JPG (Máx. 500KB)</p>
           </div>
 
-          <div className="grid gap-4">
-            <Input 
-              label="Número Próxima Factura" 
-              placeholder="0001" 
-              value={issuer.nextInvoiceNumber}
-              onChange={(e) => handleIssuerChange('nextInvoiceNumber', e.target.value)}
-            />
+          <div className="grid gap-6">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Receipt size={16} className="text-indigo-500" />
+                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Numeración de Documentación</h3>
+              </div>
+              <div className="grid grid-cols-3 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                <Input 
+                  label="Factura" 
+                  placeholder="0001" 
+                  value={issuer.nextInvoiceNumber}
+                  onChange={(e) => handleIssuerChange('nextInvoiceNumber', e.target.value)}
+                />
+                <Input 
+                  label="Cotización" 
+                  placeholder="0001" 
+                  value={issuer.nextQuoteNumber}
+                  onChange={(e) => handleIssuerChange('nextQuoteNumber', e.target.value)}
+                />
+                <Input 
+                  label="Recibo" 
+                  placeholder="0001" 
+                  value={issuer.nextReceiptNumber}
+                  onChange={(e) => handleIssuerChange('nextReceiptNumber', e.target.value)}
+                />
+              </div>
+            </div>
+            
             <Input label="Razón Social" value={issuer.name} onChange={(e) => handleIssuerChange('name', e.target.value)} />
             <Input label="CIF / DNI" value={issuer.idNumber} onChange={(e) => handleIssuerChange('idNumber', e.target.value)} />
             <Input label="Dirección Fiscal" value={issuer.address} onChange={(e) => handleIssuerChange('address', e.target.value)} />
@@ -632,7 +663,6 @@ const App: React.FC = () => {
                     <div className="h-4 w-1 bg-indigo-500 rounded-full"></div>
                     <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Líneas de Factura</h2>
                   </div>
-                  <button onClick={addItem} className="flex items-center gap-1 text-[10px] font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-full uppercase tracking-tighter"><Plus size={14} /> Añadir Línea</button>
                 </div>
                 {data.items.map((item, index) => (
                   <div key={item.id} className="relative bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-4">
@@ -657,6 +687,9 @@ const App: React.FC = () => {
                     />
                   </div>
                 ))}
+                <button onClick={addItem} className="flex items-center justify-center gap-2 w-full py-4 border-2 border-dashed border-indigo-100 rounded-3xl text-indigo-600 font-bold text-sm hover:bg-indigo-50 transition-colors">
+                  <Plus size={18} /> Añadir Línea
+                </button>
               </section>
 
               <section className="bg-indigo-950 text-white p-7 rounded-[2.5rem] shadow-2xl flex flex-col gap-3">
@@ -690,20 +723,15 @@ const App: React.FC = () => {
                     </div>
                   </>
                 )}
-                <div className="flex justify-between items-center pt-3 border-t border-indigo-900">
-                  <span className="text-sm font-black text-indigo-200 uppercase tracking-widest">
+                <div className="flex flex-col gap-3 pt-3 border-t border-indigo-900">
+                  <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">
                     {isInvoice ? 'Total Factura' : data.type === 'quote' ? 'Total Cotización' : 'Total Recibo'}
                   </span>
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => handleSpeak(data)}
-                      disabled={isSpeaking}
-                      className="p-2 bg-indigo-800 hover:bg-indigo-700 rounded-xl text-indigo-300 transition-colors disabled:opacity-50"
-                      title="Escuchar resumen"
-                    >
-                      <Volume2 size={20} className={isSpeaking ? 'animate-pulse' : ''} />
-                    </button>
-                    <span className="text-3xl font-black text-indigo-400">{total.toFixed(2)} €</span>
+                  <div className="flex items-baseline justify-end gap-1">
+                    <span className="text-2xl font-black text-indigo-400">
+                      {total >= 100000 ? Math.floor(total).toLocaleString() : total.toFixed(2)}
+                    </span>
+                    <span className="text-lg font-bold text-indigo-500">€</span>
                   </div>
                 </div>
               </section>
@@ -738,14 +766,6 @@ const App: React.FC = () => {
                 </div>
                   <div className="flex flex-col gap-2">
                     <div className="flex gap-2">
-                      <button 
-                        onClick={() => handleSpeak(inv)}
-                        disabled={isSpeaking}
-                        className="bg-indigo-100 text-indigo-600 p-3 rounded-2xl hover:bg-indigo-200 transition-colors disabled:opacity-50"
-                        title="Escuchar resumen"
-                      >
-                        <Volume2 size={20} className={isSpeaking ? 'animate-pulse' : ''} />
-                      </button>
                       <button onClick={() => generateInvoicePDF(inv, inv.issuer || null, inv.invoiceId)} className="bg-indigo-600 text-white p-3 rounded-2xl shadow-lg shadow-indigo-100"><Download size={20} /></button>
                     </div>
                     <button onClick={() => handleDeleteHistory(inv.invoiceId)} className="p-3 text-gray-300 hover:text-red-500"><Trash2 size={20} /></button>
@@ -761,17 +781,26 @@ const App: React.FC = () => {
       <nav className="fixed bottom-0 left-0 right-0 z-20 flex flex-col items-center">
         {activeTab === 'create' && (
           <div className="w-full px-5 mb-4 max-w-lg">
-             <button
+            <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className={`w-full flex items-center justify-center gap-3 py-5 rounded-3xl font-black text-lg shadow-2xl transition-all active:scale-95 ${
+              className={`w-full flex items-center justify-center gap-3 py-4 rounded-3xl font-black shadow-2xl transition-all active:scale-95 ${
                 isGenerating ? 'bg-gray-400 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200'
               }`}
             >
               {isGenerating ? (
                 <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
-                <><Download size={24} /> DESCARGAR {data.type === 'invoice' ? 'FACTURA' : data.type === 'quote' ? 'COTIZACIÓN' : 'RECIBO'} {issuer.nextInvoiceNumber}</>
+                <div className="flex items-center gap-3">
+                  <Download size={20} />
+                  <div className="flex flex-col items-start leading-tight">
+                    <span className="text-[10px] uppercase opacity-80 tracking-widest">Descargar Documento</span>
+                    <span className="text-sm uppercase tracking-tight">
+                      {data.type === 'invoice' ? 'Factura' : data.type === 'quote' ? 'Cotización' : 'Recibo'} #
+                      {data.type === 'invoice' ? issuer.nextInvoiceNumber : data.type === 'quote' ? issuer.nextQuoteNumber : issuer.nextReceiptNumber}
+                    </span>
+                  </div>
+                </div>
               )}
             </button>
           </div>

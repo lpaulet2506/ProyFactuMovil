@@ -29,6 +29,8 @@ export interface IssuerData {
   phone: string;
   email: string;
   nextInvoiceNumber: string;
+  nextQuoteNumber: string;
+  nextReceiptNumber: string;
   logo?: string; // Base64 string of the company logo
 }
 

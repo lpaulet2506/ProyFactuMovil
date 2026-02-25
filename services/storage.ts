@@ -54,11 +54,13 @@ const seedAdmin = () => {
 seedAdmin();
 
 export const storage = {
-  login: (email: string, password: string): User | null => {
-    const users: User[] = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    const user = users.find(u => u.email === email && u.password === password);
+  login: async (email: string, password: string): Promise<User | null> => {
+    const response = await fetch('/api/users');
+    const users: User[] = await response.json();
+    // In a real app, we'd have a proper login endpoint, but for now we'll simulate it
+    const user = users.find(u => u.email === email && (u as any).password === password);
     if (user) {
-      const { password: _, ...safeUser } = user;
+      const { password: _, ...safeUser } = user as any;
       localStorage.setItem(SESSION_KEY, JSON.stringify(safeUser));
       return safeUser as User;
     }
@@ -74,17 +76,18 @@ export const storage = {
     return session ? JSON.parse(session) : null;
   },
 
-  getAllUsers: (): User[] => {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  getAllUsers: async (): Promise<User[]> => {
+    const response = await fetch('/api/users');
+    return response.json();
   },
 
-  addUser: (user: User, initialIssuer?: Partial<IssuerData>) => {
-    const users = storage.getAllUsers();
-    if (users.some(u => u.email === user.email)) throw new Error("El usuario ya existe.");
-    users.push(user);
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  addUser: async (user: User, initialIssuer?: Partial<IssuerData>) => {
+    await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user)
+    });
     
-    // If admin provided a logo or initial data, save it for the new user
     if (initialIssuer) {
       const defaultIssuer: IssuerData = {
         name: '',
@@ -95,59 +98,57 @@ export const storage = {
         phone: '',
         email: user.email,
         nextInvoiceNumber: '0001',
+        nextQuoteNumber: '0001',
+        nextReceiptNumber: '0001',
         ...initialIssuer
       };
-      localStorage.setItem(ISSUER_PREFIX + user.id, JSON.stringify(defaultIssuer));
+      await fetch(`/api/issuer/${user.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(defaultIssuer)
+      });
     }
 
     emailService.sendWelcomeEmail(user.email);
   },
 
-  deleteUser: (id: string) => {
-    const users = storage.getAllUsers().filter(u => u.id !== id);
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    localStorage.removeItem(ISSUER_PREFIX + id);
+  deleteUser: async (id: string) => {
+    await fetch(`/api/users/${id}`, { method: 'DELETE' });
   },
 
-  saveInvoice: (invoice: SavedInvoice) => {
-    const history = storage.getInvoices();
-    const updated = [invoice, ...history];
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  saveInvoice: async (invoice: SavedInvoice) => {
+    await fetch('/api/invoices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...invoice, userId: invoice.userId })
+    });
   },
   
-  getInvoices: (): SavedInvoice[] => {
+  getInvoices: async (): Promise<SavedInvoice[]> => {
     const user = storage.getCurrentUser();
     if (!user) return [];
-    const data = localStorage.getItem(HISTORY_KEY);
-    const allInvoices: SavedInvoice[] = data ? JSON.parse(data) : [];
-    return allInvoices.filter(inv => inv.userId === user.id);
+    const response = await fetch(`/api/invoices/${user.id}`);
+    return response.json();
   },
 
-  deleteInvoice: (id: string) => {
-    const data = localStorage.getItem(HISTORY_KEY);
-    const allInvoices: SavedInvoice[] = data ? JSON.parse(data) : [];
-    const updated = allInvoices.filter(inv => inv.invoiceId !== id);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  deleteInvoice: async (id: string) => {
+    await fetch(`/api/invoices/${id}`, { method: 'DELETE' });
   },
 
-  saveIssuerData: (data: IssuerData) => {
+  saveIssuerData: async (data: IssuerData) => {
     const user = storage.getCurrentUser();
     if (!user) return;
-    try {
-      localStorage.setItem(ISSUER_PREFIX + user.id, JSON.stringify(data));
-    } catch (e) {
-      console.error("Error saving issuer data to localStorage:", e);
-      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-        throw new Error("No hay espacio suficiente en el dispositivo para guardar el logo. Intenta con una imagen más pequeña.");
-      }
-      throw new Error("Error al guardar los datos de la empresa.");
-    }
+    await fetch(`/api/issuer/${user.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
   },
 
-  getIssuerData: (): IssuerData | null => {
+  getIssuerData: async (): Promise<IssuerData | null> => {
     const user = storage.getCurrentUser();
     if (!user) return null;
-    const data = localStorage.getItem(ISSUER_PREFIX + user.id);
-    return data ? JSON.parse(data) : null;
+    const response = await fetch(`/api/issuer/${user.id}`);
+    return response.json();
   }
 };
