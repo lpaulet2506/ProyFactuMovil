@@ -55,14 +55,19 @@ seedAdmin();
 
 export const storage = {
   login: async (email: string, password: string): Promise<User | null> => {
-    const response = await fetch('/api/users');
-    const users: User[] = await response.json();
-    // In a real app, we'd have a proper login endpoint, but for now we'll simulate it
-    const user = users.find(u => u.email === email && (u as any).password === password);
-    if (user) {
-      const { password: _, ...safeUser } = user as any;
-      localStorage.setItem(SESSION_KEY, JSON.stringify(safeUser));
-      return safeUser as User;
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      if (response.ok) {
+        const user = await response.json();
+        localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+        return user as User;
+      }
+    } catch (err) {
+      console.error("Login error:", err);
     }
     return null;
   },
@@ -116,6 +121,17 @@ export const storage = {
     await fetch(`/api/users/${id}`, { method: 'DELETE' });
   },
 
+  updateUser: async (id: string, data: { email: string, password?: string }) => {
+    const response = await fetch(`/api/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      throw new Error("Error al actualizar el usuario");
+    }
+  },
+
   saveInvoice: async (invoice: SavedInvoice) => {
     await fetch('/api/invoices', {
       method: 'POST',
@@ -137,18 +153,39 @@ export const storage = {
 
   saveIssuerData: async (data: IssuerData) => {
     const user = storage.getCurrentUser();
-    if (!user) return;
-    await fetch(`/api/issuer/${user.id}`, {
+    console.log("storage.saveIssuerData: Current user", user);
+    if (!user) {
+      console.error("No user found in session");
+      return;
+    }
+    console.log(`Sending POST to /api/issuer/${user.id}`);
+    const response = await fetch(`/api/issuer/${user.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("Error saving issuer data:", error);
+      throw new Error(error.error || "Error saving issuer data");
+    }
+    console.log("Issuer data saved successfully");
   },
 
   getIssuerData: async (): Promise<IssuerData | null> => {
     const user = storage.getCurrentUser();
     if (!user) return null;
-    const response = await fetch(`/api/issuer/${user.id}`);
-    return response.json();
+    try {
+      const response = await fetch(`/api/issuer/${user.id}`);
+      if (!response.ok) {
+        console.error("Failed to fetch issuer data");
+        return null;
+      }
+      const data = await response.json();
+      return data;
+    } catch (err) {
+      console.error("Error fetching issuer data:", err);
+      return null;
+    }
   }
 };

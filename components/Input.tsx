@@ -30,7 +30,7 @@ const Input: React.FC<InputProps> = ({
       </label>
       <input
         type={type}
-        value={value}
+        value={value ?? ''}
         onChange={onChange}
         placeholder={placeholder}
         className={`w-full px-4 py-3 rounded-xl border bg-white outline-none transition-all duration-200 text-gray-800 shadow-sm ${

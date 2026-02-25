@@ -1,22 +1,37 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import pg from "pg";
+import pkg from "pg";
 import dotenv from "dotenv";
+
+const { Pool } = pkg;
 
 dotenv.config();
 
-const { Pool } = pg;
-
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  user: 'neondb_owner',
+  host: 'ep-green-math-agf60hvl-pooler.c-2.eu-central-1.aws.neon.tech',
+  database: 'neondb',
+  password: 'npg_XGpKU5g6tCkh',
+  port: 5432,
   ssl: {
     rejectUnauthorized: false,
   },
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
+
+// Test connection and log details
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
 });
 
 async function initDb() {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
+    console.log("Connected to PostgreSQL successfully");
+    
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -62,11 +77,26 @@ async function initDb() {
         issuer JSONB
       );
     `);
-    console.log("Database initialized successfully");
+    
+    // Ensure admin user exists
+    console.log("Checking for admin user...");
+    const adminCheck = await client.query("SELECT * FROM users WHERE email = 'admin@factumovil.com'");
+    if (adminCheck.rows.length === 0) {
+      console.log("Admin user not found, creating...");
+      await client.query(`
+        INSERT INTO users (id, email, password, role) 
+        VALUES ('admin-001', 'admin@factumovil.com', 'admin', 'admin')
+      `);
+      console.log("Admin user created successfully");
+    } else {
+      console.log("Admin user already exists");
+    }
+
+    console.log("Database schema and seed data verified");
   } catch (err) {
     console.error("Error initializing database:", err);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 }
 
@@ -74,13 +104,46 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  console.log("Starting server initialization...");
   app.use(express.json({ limit: '50mb' }));
 
-  await initDb();
+  // Initialize DB in background to not block server start
+  initDb().then(() => {
+    console.log("Database initialization finished");
+  }).catch(err => {
+    console.error("Database initialization failed:", err);
+  });
 
   // API Routes
+  console.log("Registering API routes...");
   
   // Users
+  app.post("/api/login", async (req, res) => {
+    const { email, password } = req.body;
+    try {
+      const { rows } = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+      
+      if (rows.length > 0) {
+        const user = rows[0];
+        if (user.password === password) {
+          res.json({
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            createdAt: user.created_at
+          });
+        } else {
+          res.status(401).json({ error: "Invalid credentials" });
+        }
+      } else {
+        res.status(401).json({ error: "Invalid credentials" });
+      }
+    } catch (err) {
+      console.error("Login error in server:", err);
+      res.status(500).json({ error: "Login error" });
+    }
+  });
+
   app.get("/api/users", async (req, res) => {
     try {
       const { rows } = await pool.query("SELECT * FROM users ORDER BY created_at DESC");
@@ -117,6 +180,20 @@ async function startServer() {
     }
   });
 
+  app.put("/api/users/:id", async (req, res) => {
+    const { email, password } = req.body;
+    try {
+      if (password) {
+        await pool.query("UPDATE users SET email = $1, password = $2 WHERE id = $3", [email, password, req.params.id]);
+      } else {
+        await pool.query("UPDATE users SET email = $1 WHERE id = $2", [email, req.params.id]);
+      }
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Error updating user" });
+    }
+  });
+
   // Issuer Data
   app.get("/api/issuer/:userId", async (req, res) => {
     try {
@@ -143,8 +220,9 @@ async function startServer() {
 
   app.post("/api/issuer/:userId", async (req, res) => {
     const { name, idNumber, address, postalCode, city, phone, email, nextInvoiceNumber, nextQuoteNumber, nextReceiptNumber, logo } = req.body;
+    console.log(`Saving issuer data for user ${req.params.userId}. Logo length: ${logo?.length || 0}`);
     try {
-      await pool.query(
+      const result = await pool.query(
         `INSERT INTO issuer_data (user_id, name, id_number, address, postal_code, city, phone, email, next_invoice_number, next_quote_number, next_receipt_number, logo)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          ON CONFLICT (user_id) DO UPDATE SET
@@ -161,8 +239,10 @@ async function startServer() {
          logo = EXCLUDED.logo`,
         [req.params.userId, name, idNumber, address, postalCode, city, phone, email, nextInvoiceNumber, nextQuoteNumber, nextReceiptNumber, logo]
       );
+      console.log("Issuer data saved successfully", result.rowCount);
       res.json({ success: true });
     } catch (err) {
+      console.error("Error saving issuer data:", err);
       res.status(500).json({ error: "Error saving issuer data" });
     }
   });
@@ -225,8 +305,9 @@ async function startServer() {
     app.use(express.static("dist"));
   }
 
+  console.log(`Attempting to start server on port ${PORT}...`);
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server successfully running on http://0.0.0.0:${PORT}`);
   });
 }
 

@@ -51,17 +51,38 @@ const App: React.FC = () => {
     role: 'user' as const,
     logo: '' 
   });
+  const [profileForm, setProfileForm] = useState({
+    email: currentUser?.email || '',
+    password: ''
+  });
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfileForm({ email: currentUser.email, password: '' });
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     const loadData = async () => {
       if (currentUser) {
-        const invoices = await storage.getInvoices();
-        setHistory(invoices);
-        const savedIssuer = await storage.getIssuerData();
-        if (savedIssuer) setIssuer(savedIssuer);
-        if (currentUser.role === 'admin') {
-          const users = await storage.getAllUsers();
-          setAllUsers(users);
+        console.log("Loading data for user:", currentUser.id);
+        try {
+          const invoices = await storage.getInvoices();
+          console.log("Invoices loaded:", invoices.length);
+          setHistory(Array.isArray(invoices) ? invoices : []);
+          
+          const savedIssuer = await storage.getIssuerData();
+          console.log("Issuer data loaded:", savedIssuer ? "YES" : "NO");
+          if (savedIssuer) {
+            setIssuer(savedIssuer);
+          }
+          
+          if (currentUser.role === 'admin') {
+            const users = await storage.getAllUsers();
+            setAllUsers(Array.isArray(users) ? users : []);
+          }
+        } catch (err) {
+          console.error("Error loading data:", err);
         }
       }
     };
@@ -109,6 +130,24 @@ const App: React.FC = () => {
     alert(`Se ha enviado un correo de recuperación a: ${loginForm.email}`);
   };
 
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    try {
+      await storage.updateUser(currentUser.id, {
+        email: profileForm.email,
+        password: profileForm.password || undefined
+      });
+      const updatedUser = { ...currentUser, email: profileForm.email };
+      setCurrentUser(updatedUser);
+      localStorage.setItem('factumovil_session', JSON.stringify(updatedUser));
+      alert("Perfil actualizado correctamente. Si cambiaste la contraseña, úsala en tu próximo inicio de sesión.");
+      setProfileForm(p => ({ ...p, password: '' }));
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserForm.email || !newUserForm.password) {
@@ -143,11 +182,12 @@ const App: React.FC = () => {
   };
 
   const saveIssuerSettings = async () => {
+    console.log("Saving issuer settings...", issuer);
     const missing = [];
-    if (!issuer.name.trim()) missing.push("Razón Social");
-    if (!issuer.idNumber.trim()) missing.push("CIF/DNI");
-    if (!issuer.address.trim()) missing.push("Dirección Fiscal");
-    if (!issuer.email.trim()) missing.push("Email");
+    if (!issuer.name?.trim()) missing.push("Razón Social");
+    if (!issuer.idNumber?.trim()) missing.push("CIF/DNI");
+    if (!issuer.address?.trim()) missing.push("Dirección Fiscal");
+    if (!issuer.email?.trim()) missing.push("Email");
 
     if (missing.length > 0) {
       alert(`Por favor, complete los datos obligatorios de la empresa: \n- ${missing.join("\n- ")}`);
@@ -155,9 +195,12 @@ const App: React.FC = () => {
     }
 
     try {
+      console.log("Calling storage.saveIssuerData...");
       await storage.saveIssuerData(issuer);
+      console.log("Issuer data saved successfully in storage");
       alert("Datos de empresa actualizados correctamente.");
     } catch (err: any) {
+      console.error("Error in saveIssuerSettings:", err);
       alert(err.message);
     }
   };
@@ -201,14 +244,14 @@ const App: React.FC = () => {
     setShowValidationErrors(true);
     
     const missingFields: string[] = [];
-    if (!data.customerName.trim()) missingFields.push("Nombre del Cliente");
+    if (!data.customerName?.trim()) missingFields.push("Nombre del Cliente");
     
     if (data.type === 'quote') {
-      if (!data.address.trim()) missingFields.push("Dirección");
+      if (!data.address?.trim()) missingFields.push("Dirección");
     } else {
-      if (!data.idNumber.trim()) missingFields.push("CIF/DNI del Cliente");
-      if (!data.address.trim()) missingFields.push("Dirección del Cliente");
-      if (!data.postalCode.trim()) missingFields.push("Código Postal del Cliente");
+      if (!data.idNumber?.trim()) missingFields.push("CIF/DNI del Cliente");
+      if (!data.address?.trim()) missingFields.push("Dirección del Cliente");
+      if (!data.postalCode?.trim()) missingFields.push("Código Postal del Cliente");
     }
 
     if (missingFields.length > 0) {
@@ -216,7 +259,7 @@ const App: React.FC = () => {
       return;
     }
 
-    const hasValidItems = data.items.some(item => item.concept.trim() !== '' && (Number(item.amount) || 0) > 0);
+    const hasValidItems = data.items.some(item => (item.concept || '').trim() !== '' && (Number(item.amount) || 0) > 0);
     if (!hasValidItems) {
       alert("Debe registrar al menos una línea con descripción y precio mayor a 0.");
       return;
@@ -227,7 +270,7 @@ const App: React.FC = () => {
       return;
     }
 
-    if (!issuer || !issuer.name.trim()) {
+    if (!issuer || !issuer.name?.trim()) {
       alert("Primero debe configurar los datos de su empresa en la pestaña de Configuración.");
       setActiveTab('settings');
       return;
@@ -260,7 +303,7 @@ const App: React.FC = () => {
       
       console.log("Saving invoice to storage...");
       await storage.saveInvoice(savedInvoice);
-      setHistory(prev => [savedInvoice, ...prev]);
+      setHistory(prev => [savedInvoice, ...(Array.isArray(prev) ? prev : [])]);
 
       const nextNum = (parseInt(seriesNumber || '0001') + 1).toString().padStart(4, '0');
       const updatedIssuer = { ...issuer };
@@ -286,7 +329,7 @@ const App: React.FC = () => {
     if (window.confirm("¿Estás seguro de que deseas eliminar esta factura?")) {
       await storage.deleteInvoice(id);
       const invoices = await storage.getInvoices();
-      setHistory(invoices);
+      setHistory(Array.isArray(invoices) ? invoices : []);
     }
   };
 
@@ -346,6 +389,16 @@ const App: React.FC = () => {
               className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all mt-2"
             >
               Entrar al Panel
+            </button>
+            <button 
+              type="button" 
+              onClick={() => {
+                localStorage.clear();
+                window.location.reload();
+              }} 
+              className="w-full text-gray-300 text-[10px] font-black uppercase tracking-widest text-center mt-4 border-t border-gray-50 pt-4"
+            >
+              Limpiar Sesión y Reintentar
             </button>
           </form>
           <div className="mt-8 pt-6 border-t border-gray-50 text-center">
@@ -474,6 +527,26 @@ const App: React.FC = () => {
               <span className="text-[10px] text-indigo-200 font-bold">Registro: {new Date(currentUser.createdAt).toLocaleDateString()}</span>
             </div>
           </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-4">
+          <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Actualizar Acceso</h3>
+          <form onSubmit={handleUpdateProfile} className="flex flex-col gap-4">
+            <Input 
+              label="Nuevo Email" 
+              value={profileForm.email} 
+              onChange={(e) => setProfileForm(p => ({ ...p, email: e.target.value }))} 
+            />
+            <Input 
+              label="Nueva Contraseña (dejar en blanco para no cambiar)" 
+              type="password" 
+              value={profileForm.password} 
+              onChange={(e) => setProfileForm(p => ({ ...p, password: e.target.value }))} 
+            />
+            <button type="submit" className="bg-indigo-50 text-indigo-600 py-3 rounded-2xl text-xs font-bold hover:bg-indigo-100 transition-colors">
+              Actualizar Perfil
+            </button>
+          </form>
         </div>
       </section>
 
@@ -614,7 +687,7 @@ const App: React.FC = () => {
                     value={data.customerName} 
                     onChange={(e) => handleInputChange('customerName', e.target.value)} 
                     required={true}
-                    error={showValidationErrors && !data.customerName.trim()}
+                    error={showValidationErrors && !(data.customerName || '').trim()}
                   />
                   <Input 
                     label="CIF / DNI" 
@@ -622,7 +695,7 @@ const App: React.FC = () => {
                     value={data.idNumber} 
                     onChange={(e) => handleInputChange('idNumber', e.target.value)} 
                     required={data.type !== 'quote'}
-                    error={showValidationErrors && data.type !== 'quote' && !data.idNumber.trim()}
+                    error={showValidationErrors && data.type !== 'quote' && !(data.idNumber || '').trim()}
                   />
                   <Input 
                     label="Dirección" 
@@ -630,7 +703,7 @@ const App: React.FC = () => {
                     value={data.address} 
                     onChange={(e) => handleInputChange('address', e.target.value)} 
                     required={true}
-                    error={showValidationErrors && !data.address.trim()}
+                    error={showValidationErrors && !(data.address || '').trim()}
                   />
                   <Input 
                     label="C. Postal" 
@@ -638,7 +711,7 @@ const App: React.FC = () => {
                     value={data.postalCode} 
                     onChange={(e) => handleInputChange('postalCode', e.target.value)} 
                     required={data.type !== 'quote'}
-                    error={showValidationErrors && data.type !== 'quote' && !data.postalCode.trim()}
+                    error={showValidationErrors && data.type !== 'quote' && !(data.postalCode || '').trim()}
                   />
                 </div>
                 {data.type === 'quote' && (
@@ -674,7 +747,7 @@ const App: React.FC = () => {
                       value={item.concept} 
                       onChange={(e) => handleItemChange(item.id, 'concept', e.target.value)} 
                       required={true}
-                      error={showValidationErrors && !item.concept.trim()}
+                      error={showValidationErrors && !(item.concept || '').trim()}
                     />
                     <Input 
                       label="Precio (€)" 
