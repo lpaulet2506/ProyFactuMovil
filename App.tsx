@@ -55,6 +55,7 @@ const App: React.FC = () => {
     email: currentUser?.email || '',
     password: ''
   });
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (currentUser) {
@@ -150,21 +151,31 @@ const App: React.FC = () => {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserForm.email || !newUserForm.password) {
+    if (!newUserForm.email || (!editingUserId && !newUserForm.password)) {
       alert("Completa todos los campos obligatorios.");
       return;
     }
     try {
-      await storage.addUser({
-        id: crypto.randomUUID(),
-        email: newUserForm.email,
-        password: newUserForm.password,
-        role: newUserForm.role,
-        createdAt: new Date().toISOString()
-      }, {
-        logo: newUserForm.logo
-      });
-      alert("Empresa creada con éxito.");
+      if (editingUserId) {
+        await storage.updateUser(editingUserId, {
+          email: newUserForm.email,
+          password: newUserForm.password || undefined,
+          role: newUserForm.role
+        });
+        alert("Usuario actualizado con éxito.");
+      } else {
+        await storage.addUser({
+          id: crypto.randomUUID(),
+          email: newUserForm.email,
+          password: newUserForm.password,
+          role: newUserForm.role,
+          createdAt: new Date().toISOString()
+        }, {
+          logo: newUserForm.logo
+        });
+        alert("Empresa creada con éxito.");
+      }
+      setEditingUserId(null);
       setNewUserForm({ email: '', password: '', role: 'user', logo: '' });
       const users = await storage.getAllUsers();
       setAllUsers(users);
@@ -419,7 +430,9 @@ const App: React.FC = () => {
         <form onSubmit={handleCreateUser} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col gap-4">
           <div className="flex items-center gap-2 mb-2">
             <UserPlus size={18} className="text-indigo-500" />
-            <h3 className="font-bold text-gray-700 text-xs uppercase tracking-wider">Alta de Nueva Empresa</h3>
+            <h3 className="font-bold text-gray-700 text-xs uppercase tracking-wider">
+              {editingUserId ? 'Editar Empresa' : 'Alta de Nueva Empresa'}
+            </h3>
           </div>
 
           <div className="flex flex-col items-center gap-2 mb-2">
@@ -440,7 +453,7 @@ const App: React.FC = () => {
               )}
             </div>
             <label className="text-[10px] font-black uppercase text-indigo-600 cursor-pointer bg-indigo-50 px-3 py-1 rounded-full">
-              Cargar Logo
+              {editingUserId ? 'Subir Nuevo Logo' : 'Cargar Logo'}
               <input
                 type="file"
                 accept="image/*"
@@ -458,9 +471,9 @@ const App: React.FC = () => {
             onChange={(e) => setNewUserForm(p => ({ ...p, email: e.target.value }))}
           />
           <Input
-            label="Contraseña Temporal"
+            label={editingUserId ? "Nueva Contraseña (opcional)" : "Contraseña Temporal"}
             type="password"
-            placeholder="Clave123"
+            placeholder={editingUserId ? "Dejar en blanco para no cambiar" : "Clave123"}
             value={newUserForm.password}
             onChange={(e) => setNewUserForm(p => ({ ...p, password: e.target.value }))}
           />
@@ -475,13 +488,43 @@ const App: React.FC = () => {
               <option value="admin">Administrador del Sistema</option>
             </select>
           </div>
-          <button type="submit" className="bg-indigo-600 text-white font-bold py-4 rounded-xl mt-2 shadow-lg shadow-indigo-100">Crear y Notificar</button>
+          <div className="flex gap-2 mt-2">
+            <button type="submit" className="flex-1 bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-colors">
+              {editingUserId ? 'Actualizar Usuario' : 'Crear y Notificar'}
+            </button>
+            {editingUserId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingUserId(null);
+                  setNewUserForm({ email: '', password: '', role: 'user', logo: '' });
+                }}
+                className="bg-gray-100 text-gray-600 px-6 font-bold py-4 rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
         </form>
 
         <div className="flex flex-col gap-3">
+          <p className="text-[10px] font-bold text-gray-400 px-2 leading-tight uppercase">Toca un usuario o empresa para cargar sus datos y editar su acceso.</p>
           <h3 className="font-bold text-gray-700 text-xs uppercase tracking-wider px-2">Listado de Usuarios ({allUsers.length})</h3>
           {allUsers.map(u => (
-            <div key={u.id} className="bg-white p-5 rounded-2xl border border-gray-100 flex justify-between items-center shadow-sm">
+            <div
+              key={u.id}
+              className={`bg-white p-5 rounded-2xl border ${editingUserId === u.id ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-gray-100'} flex justify-between items-center shadow-sm cursor-pointer hover:border-indigo-300 transition-all`}
+              onClick={() => {
+                setEditingUserId(u.id);
+                setNewUserForm({
+                  email: u.email,
+                  password: '',
+                  role: u.role as 'admin' | 'user',
+                  logo: ''
+                });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${u.role === 'admin' ? 'bg-indigo-100 text-indigo-600' : 'bg-green-100 text-green-600'}`}>
                   {u.role === 'admin' ? <ShieldCheck size={20} /> : <UserIcon size={20} />}

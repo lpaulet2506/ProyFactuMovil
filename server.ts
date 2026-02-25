@@ -177,12 +177,12 @@ async function startServer() {
   });
 
   app.put("/api/users/:id", async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
     try {
       if (password) {
-        await pool.query("UPDATE users SET email = $1, password = $2 WHERE id = $3", [email, password, req.params.id]);
+        await pool.query("UPDATE users SET email = $1, password = $2, role = $3 WHERE id = $4", [email, password, role, req.params.id]);
       } else {
-        await pool.query("UPDATE users SET email = $1 WHERE id = $2", [email, req.params.id]);
+        await pool.query("UPDATE users SET email = $1, role = $2 WHERE id = $3", [email, role, req.params.id]);
       }
       res.json({ success: true });
     } catch (err) {

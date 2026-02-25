@@ -19,7 +19,7 @@ Ya puedes empezar a generar tus facturas de forma profesional desde nuestra apli
 Un cordial saludo,
 El equipo de FactuMovil.`);
   },
-  
+
   sendRecoveryEmail: (email: string) => {
     console.log(`%c [BACKEND] Enviando correo de recuperación a: ${email}`, 'color: #ef4444; font-weight: bold;');
     console.log(`Asunto: Recuperación de contraseña - FactuMovil
@@ -92,7 +92,7 @@ export const storage = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(user)
     });
-    
+
     if (initialIssuer) {
       const defaultIssuer: IssuerData = {
         name: '',
@@ -121,7 +121,7 @@ export const storage = {
     await fetch(`/api/users/${id}`, { method: 'DELETE' });
   },
 
-  updateUser: async (id: string, data: { email: string, password?: string }) => {
+  updateUser: async (id: string, data: { email: string, password?: string, role?: string }) => {
     const response = await fetch(`/api/users/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -139,7 +139,7 @@ export const storage = {
       body: JSON.stringify({ ...invoice, userId: invoice.userId })
     });
   },
-  
+
   getInvoices: async (): Promise<SavedInvoice[]> => {
     const user = storage.getCurrentUser();
     if (!user) return [];
