@@ -8,11 +8,7 @@ const { Pool } = pkg;
 dotenv.config();
 
 const pool = new Pool({
-  user: 'neondb_owner',
-  host: 'ep-green-math-agf60hvl-pooler.c-2.eu-central-1.aws.neon.tech',
-  database: 'neondb',
-  password: 'npg_XGpKU5g6tCkh',
-  port: 5432,
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false,
   },
@@ -31,7 +27,7 @@ async function initDb() {
   try {
     client = await pool.connect();
     console.log("Connected to PostgreSQL successfully");
-    
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -77,7 +73,7 @@ async function initDb() {
         issuer JSONB
       );
     `);
-    
+
     // Ensure admin user exists
     console.log("Checking for admin user...");
     const adminCheck = await client.query("SELECT * FROM users WHERE email = 'admin@factumovil.com'");
@@ -116,13 +112,13 @@ async function startServer() {
 
   // API Routes
   console.log("Registering API routes...");
-  
+
   // Users
   app.post("/api/login", async (req, res) => {
     const { email, password } = req.body;
     try {
       const { rows } = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-      
+
       if (rows.length > 0) {
         const user = rows[0];
         if (user.password === password) {
