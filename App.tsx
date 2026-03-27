@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Download, Receipt, History, FilePlus2, Building2, Save, LogOut, ShieldCheck, UserPlus, User as UserIcon, Mail, Image as ImageIcon, X, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Download, Receipt, History, FilePlus2, Building2, Save, LogOut, ShieldCheck, UserPlus, User as UserIcon, Mail, Image as ImageIcon, X, AlertCircle, Edit2 } from 'lucide-react';
 import Input from './components/Input';
 import { InvoiceData, InvoiceItem, SavedInvoice, IssuerData, User } from './types';
 import { generateInvoicePDF } from './utils/pdfGenerator';
@@ -56,6 +56,7 @@ const App: React.FC = () => {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [newUserForm, setNewUserForm] = useState({
     email: '',
@@ -230,6 +231,7 @@ const App: React.FC = () => {
   const resetForm = useCallback((type: 'invoice' | 'quote' | 'receipt' = 'invoice') => {
     setData({ ...initialInvoiceState, type, pdfModel: data.pdfModel }); // Keep current model preference
     setShowTypeSelector(false);
+    setEditingInvoiceId(null);
     if (activeTab !== 'create') setActiveTab('create');
   }, [activeTab, data.pdfModel]);
 
@@ -309,36 +311,49 @@ const App: React.FC = () => {
     try {
       console.log("Invoking generateInvoicePDF...");
       const docTypePrefix = data.type === 'invoice' ? 'F' : data.type === 'quote' ? 'C' : 'R';
-      const fullInvoiceId = `${docTypePrefix}-${seriesNumber || '0001'}`;
+      const fullInvoiceId = editingInvoiceId || `${docTypePrefix}-${seriesNumber || '0001'}`;
 
       const invoiceId = generateInvoicePDF(data, issuer, fullInvoiceId);
       console.log("PDF generation successful, ID:", invoiceId);
+
+      const existingInvoice = editingInvoiceId ? history.find(h => h.invoiceId === editingInvoiceId) : null;
 
       const savedInvoice: SavedInvoice = {
         ...data,
         invoiceId: invoiceId,
         userId: currentUser.id,
-        createdAt: new Date().toISOString(),
+        createdAt: existingInvoice ? existingInvoice.createdAt : new Date().toISOString(),
         total: total,
         issuer: issuer
       };
 
       console.log("Saving invoice to storage...");
       await storage.saveInvoice(savedInvoice);
-      setHistory(prev => [savedInvoice, ...(Array.isArray(prev) ? prev : [])]);
 
-      const nextNum = (parseInt(seriesNumber || '0001') + 1).toString().padStart(4, '0');
-      const updatedIssuer = { ...issuer };
-      if (data.type === 'invoice') updatedIssuer.nextInvoiceNumber = nextNum;
-      else if (data.type === 'quote') updatedIssuer.nextQuoteNumber = nextNum;
-      else if (data.type === 'receipt') updatedIssuer.nextReceiptNumber = nextNum;
+      if (editingInvoiceId) {
+        setHistory(prev => prev.map(inv => inv.invoiceId === editingInvoiceId ? savedInvoice : inv));
+      } else {
+        setHistory(prev => [savedInvoice, ...(Array.isArray(prev) ? prev : [])]);
 
-      setIssuer(updatedIssuer);
-      await storage.saveIssuerData(updatedIssuer);
+        const nextNum = (parseInt(seriesNumber || '0001') + 1).toString().padStart(4, '0');
+        const updatedIssuer = { ...issuer };
+        if (data.type === 'invoice') updatedIssuer.nextInvoiceNumber = nextNum;
+        else if (data.type === 'quote') updatedIssuer.nextQuoteNumber = nextNum;
+        else if (data.type === 'receipt') updatedIssuer.nextReceiptNumber = nextNum;
+
+        setIssuer(updatedIssuer);
+        await storage.saveIssuerData(updatedIssuer);
+      }
 
       const docType = data.type === 'invoice' ? 'Factura' : data.type === 'quote' ? 'Cotización' : 'Recibo';
-      alert(`${docType} ${seriesNumber} generada correctamente.`);
+      alert(`${docType} ${editingInvoiceId ? 'actualizada' : 'generada'} correctamente.`);
       setShowValidationErrors(false);
+      
+      if (editingInvoiceId) {
+        setEditingInvoiceId(null);
+        resetForm(data.type);
+        setActiveTab('history');
+      }
     } catch (err) {
       console.error("Critical error in handleGenerate:", err);
       alert(`Error crítico al generar el documento: ${err instanceof Error ? err.message : String(err)}`);
@@ -925,6 +940,30 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        setData({
+                          type: inv.type,
+                          pdfModel: inv.pdfModel,
+                          customerName: inv.customerName,
+                          idNumber: inv.idNumber || '',
+                          address: inv.address || '',
+                          postalCode: inv.postalCode || '',
+                          items: inv.items,
+                          ivaPercentage: inv.ivaPercentage,
+                          includeIvaInQuote: inv.includeIvaInQuote,
+                          includeAccountNumber: inv.includeAccountNumber,
+                          issuerDisplayOptions: inv.issuerDisplayOptions || { name: true, idNumber: true, address: true, postalCode: true, city: true, phone: true, email: true },
+                        });
+                        setEditingInvoiceId(inv.invoiceId);
+                        setActiveTab('create');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="bg-blue-100 text-blue-600 p-3 rounded-2xl hover:bg-blue-200 transition-colors"
+                      title="Editar Documento"
+                    >
+                      <Edit2 size={20} />
+                    </button>
                     {inv.type === 'quote' && (
                       <button 
                         onClick={() => {
@@ -941,6 +980,7 @@ const App: React.FC = () => {
                             includeAccountNumber: inv.includeAccountNumber,
                             issuerDisplayOptions: inv.issuerDisplayOptions || { name: true, idNumber: true, address: true, postalCode: true, city: true, phone: true, email: true },
                           });
+                          setEditingInvoiceId(null);
                           setActiveTab('create');
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
@@ -977,10 +1017,10 @@ const App: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <Download size={20} />
                   <div className="flex flex-col items-start leading-tight">
-                    <span className="text-[10px] uppercase opacity-80 tracking-widest">Descargar Documento</span>
+                    <span className="text-[10px] uppercase opacity-80 tracking-widest">{editingInvoiceId ? 'Aplicar Cambios a' : 'Descargar Documento'}</span>
                     <span className="text-sm uppercase tracking-tight">
                       {data.type === 'invoice' ? 'Factura' : data.type === 'quote' ? 'Cotización' : 'Recibo'} #
-                      {data.type === 'invoice' ? issuer.nextInvoiceNumber : data.type === 'quote' ? issuer.nextQuoteNumber : issuer.nextReceiptNumber}
+                      {editingInvoiceId ? editingInvoiceId.replace(/^[CFR]-/, '') : (data.type === 'invoice' ? issuer.nextInvoiceNumber : data.type === 'quote' ? issuer.nextQuoteNumber : issuer.nextReceiptNumber)}
                     </span>
                   </div>
                 </div>

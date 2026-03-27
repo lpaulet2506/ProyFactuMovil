@@ -284,7 +284,19 @@ async function startServer() {
     try {
       await pool.query(
         `INSERT INTO invoices (invoice_id, user_id, type, pdf_model, customer_name, id_number, address, postal_code, iva_percentage, include_iva_in_quote, total, created_at, items, issuer)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         ON CONFLICT (invoice_id) DO UPDATE SET
+         type = EXCLUDED.type,
+         pdf_model = EXCLUDED.pdf_model,
+         customer_name = EXCLUDED.customer_name,
+         id_number = EXCLUDED.id_number,
+         address = EXCLUDED.address,
+         postal_code = EXCLUDED.postal_code,
+         iva_percentage = EXCLUDED.iva_percentage,
+         include_iva_in_quote = EXCLUDED.include_iva_in_quote,
+         total = EXCLUDED.total,
+         items = EXCLUDED.items,
+         issuer = EXCLUDED.issuer`,
         [invoiceId, userId, type, pdfModel, customerName, idNumber, address, postalCode, ivaPercentage, includeIvaInQuote, total, createdAt, JSON.stringify(items), JSON.stringify(issuer)]
       );
       res.json({ success: true });
