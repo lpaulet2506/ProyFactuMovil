@@ -671,7 +671,7 @@ const App: React.FC = () => {
             </div>
             <Input label="Teléfono" type="tel" value={issuer.phone} onChange={(e) => handleIssuerChange('phone', e.target.value)} />
             <Input label="Email de Factura" type="email" value={issuer.email} onChange={(e) => handleIssuerChange('email', e.target.value)} />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-6 mt-1">
               <Input label="Titular de la Cuenta" value={issuer.accountName || ''} onChange={(e) => handleIssuerChange('accountName', e.target.value)} />
               <Input label="Número de Cuenta (IBAN)" value={issuer.accountNumber || ''} onChange={(e) => handleIssuerChange('accountNumber', e.target.value)} />
             </div>
