@@ -82,6 +82,10 @@ async function initDb() {
       );
     `);
 
+    await client.query(`
+      ALTER TABLE invoices ADD COLUMN IF NOT EXISTS estado INTEGER DEFAULT 1;
+    `);
+
     // Ensure admin user exists
     console.log("Checking for admin user...");
     const adminCheck = await client.query("SELECT * FROM users WHERE email = 'admin@factumovil.com'");
@@ -258,7 +262,7 @@ async function startServer() {
   // Invoices
   app.get("/api/invoices/:userId", async (req, res) => {
     try {
-      const { rows } = await pool.query("SELECT * FROM invoices WHERE user_id = $1 ORDER BY created_at DESC", [req.params.userId]);
+      const { rows } = await pool.query("SELECT * FROM invoices WHERE user_id = $1 AND estado = 1 ORDER BY created_at DESC", [req.params.userId]);
       res.json(rows.map(r => ({
         invoiceId: r.invoice_id,
         type: r.type,
@@ -296,7 +300,8 @@ async function startServer() {
          include_iva_in_quote = EXCLUDED.include_iva_in_quote,
          total = EXCLUDED.total,
          items = EXCLUDED.items,
-         issuer = EXCLUDED.issuer`,
+         issuer = EXCLUDED.issuer,
+         estado = 1`,
         [invoiceId, userId, type, pdfModel, customerName, idNumber, address, postalCode, ivaPercentage, includeIvaInQuote, total, createdAt, JSON.stringify(items), JSON.stringify(issuer)]
       );
       res.json({ success: true });
@@ -307,7 +312,7 @@ async function startServer() {
 
   app.delete("/api/invoices/:id", async (req, res) => {
     try {
-      await pool.query("DELETE FROM invoices WHERE invoice_id = $1", [req.params.id]);
+      await pool.query("UPDATE invoices SET estado = 0 WHERE invoice_id = $1", [req.params.id]);
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: "Error deleting invoice" });
