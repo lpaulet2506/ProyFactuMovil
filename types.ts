@@ -34,6 +34,7 @@ export interface IssuerData {
   nextReceiptNumber: string;
   logo?: string; // Base64 string of the company logo
   accountNumber?: string;
+  accountName?: string;
   showAccountNumber?: boolean;
   showPricePlusVat?: boolean;
 }

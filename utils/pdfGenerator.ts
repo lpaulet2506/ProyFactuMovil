@@ -115,10 +115,17 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
       doc.setTextColor(51, 65, 85);
       
       if (data.includeAccountNumber && issuer?.accountNumber) {
+        let currentY = finalY + 5;
         doc.setFont("helvetica", "bold");
-        doc.text("Número de cuenta (IBAN):", 15, finalY + 5);
+        doc.text("Datos de Pago:", 15, currentY);
         doc.setFont("helvetica", "normal");
-        doc.text(issuer.accountNumber, 15, finalY + 10);
+        
+        if (issuer.accountName) {
+          currentY += 5;
+          doc.text(issuer.accountName, 15, currentY);
+        }
+        currentY += 4;
+        doc.text(issuer.accountNumber, 15, currentY);
       }
       
       if (isInvoice) {
@@ -225,10 +232,17 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
       const summaryX = 115; // Moved further left to avoid overlap
       
       if (data.includeAccountNumber && issuer?.accountNumber) {
+        let currentY = finalY;
         doc.setFont("helvetica", "bold");
-        doc.text("Número de cuenta (IBAN):", 15, finalY);
+        doc.text("Datos de Pago:", 15, currentY);
         doc.setFont("helvetica", "normal");
-        doc.text(issuer.accountNumber, 15, finalY + 6);
+        
+        if (issuer.accountName) {
+          currentY += 5;
+          doc.text(issuer.accountName, 15, currentY);
+        }
+        currentY += 4;
+        doc.text(issuer.accountNumber, 15, currentY);
       }
       
       if (isInvoice) {

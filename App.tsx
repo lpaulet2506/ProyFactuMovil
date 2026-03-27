@@ -41,7 +41,8 @@ const App: React.FC = () => {
     nextQuoteNumber: '0001',
     nextReceiptNumber: '0001',
     logo: '',
-    accountNumber: ''
+    accountNumber: '',
+    accountName: ''
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -646,7 +647,10 @@ const App: React.FC = () => {
             </div>
             <Input label="Teléfono" type="tel" value={issuer.phone} onChange={(e) => handleIssuerChange('phone', e.target.value)} />
             <Input label="Email de Factura" type="email" value={issuer.email} onChange={(e) => handleIssuerChange('email', e.target.value)} />
-            <Input label="Número de Cuenta (IBAN)" value={issuer.accountNumber || ''} onChange={(e) => handleIssuerChange('accountNumber', e.target.value)} />
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Titular de la Cuenta" value={issuer.accountName || ''} onChange={(e) => handleIssuerChange('accountName', e.target.value)} />
+              <Input label="Número de Cuenta (IBAN)" value={issuer.accountNumber || ''} onChange={(e) => handleIssuerChange('accountNumber', e.target.value)} />
+            </div>
 
             <button
               onClick={saveIssuerSettings}
@@ -874,6 +878,30 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
+                    {inv.type === 'quote' && (
+                      <button 
+                        onClick={() => {
+                          setData({
+                            type: 'invoice',
+                            pdfModel: inv.pdfModel,
+                            customerName: inv.customerName,
+                            idNumber: inv.idNumber || '',
+                            address: inv.address || '',
+                            postalCode: inv.postalCode || '',
+                            items: inv.items,
+                            ivaPercentage: inv.ivaPercentage,
+                            includeIvaInQuote: inv.includeIvaInQuote,
+                            includeAccountNumber: inv.includeAccountNumber,
+                          });
+                          setActiveTab('create');
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="bg-green-100 text-green-600 p-3 rounded-2xl hover:bg-green-200 transition-colors"
+                        title="Generar Factura desde Cotización"
+                      >
+                        <Receipt size={20} />
+                      </button>
+                    )}
                     <button onClick={() => generateInvoicePDF(inv, inv.issuer || null, inv.invoiceId)} className="bg-indigo-600 text-white p-3 rounded-2xl shadow-lg shadow-indigo-100"><Download size={20} /></button>
                   </div>
                   <button onClick={() => handleDeleteHistory(inv.invoiceId)} className="p-3 text-gray-300 hover:text-red-500"><Trash2 size={20} /></button>
