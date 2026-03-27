@@ -923,23 +923,22 @@ const App: React.FC = () => {
                 <p className="font-bold text-sm">Sin historial de emisiones</p>
               </div>
             ) : history.map(inv => (
-              <div key={inv.invoiceId} className="bg-white p-5 rounded-3xl border border-gray-100 flex justify-between items-center shadow-sm">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${inv.type === 'invoice' ? 'bg-blue-100 text-blue-600' : inv.type === 'quote' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
+              <div key={inv.invoiceId} className="bg-white p-5 rounded-3xl border border-gray-100 flex flex-col gap-4 shadow-sm">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-start gap-2 max-w-full">
+                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full whitespace-nowrap ${inv.type === 'invoice' ? 'bg-blue-100 text-blue-600' : inv.type === 'quote' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
                       {inv.type === 'invoice' ? 'Factura' : inv.type === 'quote' ? 'Cotización' : 'Recibo'}
                     </span>
-                    <h3 className="font-bold text-gray-800">{inv.customerName}</h3>
+                    <h3 className="font-bold text-gray-800 break-words line-clamp-2 leading-tight flex-1">{inv.customerName}</h3>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-black uppercase mt-1">
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-black uppercase mt-2">
                     <span className="text-indigo-600 font-mono">#{inv.invoiceId}</span>
                     <span>•</span>
                     <span>{new Date(inv.createdAt).toLocaleDateString()}</span>
                   </div>
                   <p className="text-xl font-black text-indigo-600 mt-2">{inv.total.toFixed(2)}€</p>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex gap-2">
+                <div className="flex gap-2 pt-4 border-t border-gray-50 flex-wrap justify-end">
                     <button 
                       onClick={() => {
                         setData({
@@ -951,18 +950,19 @@ const App: React.FC = () => {
                           postalCode: inv.postalCode || '',
                           items: inv.items,
                           ivaPercentage: inv.ivaPercentage,
-                          includeIvaInQuote: inv.includeIvaInQuote,
-                          includeAccountNumber: inv.includeAccountNumber,
+                          includeIvaInQuote: inv.includeIvaInQuote || false,
+                          includeAccountNumber: inv.includeAccountNumber || false,
                           issuerDisplayOptions: inv.issuerDisplayOptions || { name: true, idNumber: true, address: true, postalCode: true, city: true, phone: true, email: true },
                         });
                         setEditingInvoiceId(inv.invoiceId);
                         setActiveTab('create');
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className="bg-blue-100 text-blue-600 p-3 rounded-2xl hover:bg-blue-200 transition-colors"
+                      className="flex items-center gap-1.5 bg-blue-100 text-blue-600 px-4 py-3 rounded-2xl hover:bg-blue-200 transition-colors flex-1 justify-center sm:flex-none"
                       title="Editar Documento"
                     >
-                      <Edit2 size={20} />
+                      <Edit2 size={18} />
+                      <span className="text-xs font-bold uppercase tracking-wider">Editar</span>
                     </button>
                     {inv.type === 'quote' && (
                       <button 
@@ -976,23 +976,28 @@ const App: React.FC = () => {
                             postalCode: inv.postalCode || '',
                             items: inv.items,
                             ivaPercentage: inv.ivaPercentage,
-                            includeIvaInQuote: inv.includeIvaInQuote,
-                            includeAccountNumber: inv.includeAccountNumber,
+                            includeIvaInQuote: inv.includeIvaInQuote || false,
+                            includeAccountNumber: inv.includeAccountNumber || false,
                             issuerDisplayOptions: inv.issuerDisplayOptions || { name: true, idNumber: true, address: true, postalCode: true, city: true, phone: true, email: true },
                           });
                           setEditingInvoiceId(null);
                           setActiveTab('create');
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
-                        className="bg-green-100 text-green-600 p-3 rounded-2xl hover:bg-green-200 transition-colors"
+                        className="flex items-center gap-1.5 bg-green-100 text-green-600 px-4 py-3 rounded-2xl hover:bg-green-200 transition-colors flex-1 justify-center sm:flex-none"
                         title="Generar Factura desde Cotización"
                       >
-                        <Receipt size={20} />
+                        <Receipt size={18} />
+                        <span className="text-xs font-bold uppercase tracking-wider">Facturar</span>
                       </button>
                     )}
-                    <button onClick={() => generateInvoicePDF(inv, inv.issuer || null, inv.invoiceId)} className="bg-indigo-600 text-white p-3 rounded-2xl shadow-lg shadow-indigo-100"><Download size={20} /></button>
-                  </div>
-                  <button onClick={() => handleDeleteHistory(inv.invoiceId)} className="p-3 text-gray-300 hover:text-red-500"><Trash2 size={20} /></button>
+                    <button onClick={() => generateInvoicePDF(inv, inv.issuer || null, inv.invoiceId)} className="flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-3 rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-colors flex-1 justify-center sm:flex-none" title="Descargar PDF">
+                      <Download size={18} />
+                      <span className="text-xs font-bold uppercase tracking-wider">Bajar</span>
+                    </button>
+                    <button onClick={() => handleDeleteHistory(inv.invoiceId)} className="flex items-center gap-1.5 px-4 py-3 rounded-2xl text-red-500 bg-red-50 hover:bg-red-100 transition-colors flex-1 justify-center sm:flex-none" title="Eliminar">
+                      <Trash2 size={18} />
+                    </button>
                 </div>
               </div>
             ))}
