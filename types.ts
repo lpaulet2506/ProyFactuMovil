@@ -18,6 +18,7 @@ export interface InvoiceData {
   items: InvoiceItem[];
   ivaPercentage: number;
   includeIvaInQuote?: boolean;
+  includeAccountNumber?: boolean;
 }
 
 export interface IssuerData {
@@ -32,6 +33,9 @@ export interface IssuerData {
   nextQuoteNumber: string;
   nextReceiptNumber: string;
   logo?: string; // Base64 string of the company logo
+  accountNumber?: string;
+  showAccountNumber?: boolean;
+  showPricePlusVat?: boolean;
 }
 
 export type UserRole = 'admin' | 'user';

@@ -23,6 +23,7 @@ const App: React.FC = () => {
     items: [{ id: crypto.randomUUID(), concept: '', amount: 0 }],
     ivaPercentage: 21,
     includeIvaInQuote: false,
+    includeAccountNumber: false,
   };
 
   const [data, setData] = useState<InvoiceData>(initialInvoiceState);
@@ -39,7 +40,8 @@ const App: React.FC = () => {
     nextInvoiceNumber: '0001',
     nextQuoteNumber: '0001',
     nextReceiptNumber: '0001',
-    logo: ''
+    logo: '',
+    accountNumber: ''
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -644,6 +646,7 @@ const App: React.FC = () => {
             </div>
             <Input label="Teléfono" type="tel" value={issuer.phone} onChange={(e) => handleIssuerChange('phone', e.target.value)} />
             <Input label="Email de Factura" type="email" value={issuer.email} onChange={(e) => handleIssuerChange('email', e.target.value)} />
+            <Input label="Número de Cuenta (IBAN)" value={issuer.accountNumber || ''} onChange={(e) => handleIssuerChange('accountNumber', e.target.value)} />
 
             <button
               onClick={saveIssuerSettings}
@@ -750,6 +753,18 @@ const App: React.FC = () => {
                   </label>
                 </div>
               )}
+              <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm mt-2">
+                <input
+                  type="checkbox"
+                  id="includeAccountNumber"
+                  checked={data.includeAccountNumber}
+                  onChange={(e) => handleInputChange('includeAccountNumber', e.target.checked)}
+                  className="w-5 h-5 rounded-lg border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="includeAccountNumber" className="text-sm font-bold text-gray-700 cursor-pointer">
+                  Incluir Número de Cuenta
+                </label>
+              </div>
             </section>
 
             <section className="flex flex-col gap-4">

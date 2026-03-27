@@ -114,6 +114,13 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
       doc.setFontSize(10);
       doc.setTextColor(51, 65, 85);
       
+      if (data.includeAccountNumber && issuer?.accountNumber) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Número de cuenta (IBAN):", 15, finalY + 5);
+        doc.setFont("helvetica", "normal");
+        doc.text(issuer.accountNumber, 15, finalY + 10);
+      }
+      
       if (isInvoice) {
         doc.setFont("helvetica", "bold");
         doc.text(`SUB TOTAL`, totalBoxX + 5, finalY);
@@ -215,6 +222,13 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
       // Summary
       doc.setFontSize(10);
       const summaryX = 115; // Moved further left to avoid overlap
+      
+      if (data.includeAccountNumber && issuer?.accountNumber) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Número de cuenta (IBAN):", 15, finalY);
+        doc.setFont("helvetica", "normal");
+        doc.text(issuer.accountNumber, 15, finalY + 6);
+      }
       
       if (isInvoice) {
         doc.text(`Subtotal:`, summaryX, finalY);
