@@ -57,10 +57,37 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       if (issuer) {
-        doc.text(String(issuer.name || ""), 130, 50);
-        doc.text(`NIF: ${String(issuer.idNumber || "")}`, 130, 54);
-        doc.text(String(issuer.email || ""), 130, 58);
-        doc.text(String(issuer.phone || ""), 130, 62);
+        let currentY = 50;
+        if (data.issuerDisplayOptions?.name !== false) {
+          doc.text(String(issuer.name || ""), 130, currentY);
+          currentY += 4;
+        }
+        if (data.issuerDisplayOptions?.idNumber !== false) {
+          doc.text(`NIF: ${String(issuer.idNumber || "")}`, 130, currentY);
+          currentY += 4;
+        }
+        if (data.issuerDisplayOptions?.address !== false && issuer.address) {
+          doc.text(String(issuer.address || ""), 130, currentY);
+          currentY += 4;
+        }
+        if (data.issuerDisplayOptions?.postalCode !== false || data.issuerDisplayOptions?.city !== false) {
+          let pcCity = [];
+          if (data.issuerDisplayOptions?.postalCode !== false && issuer.postalCode) pcCity.push(String(issuer.postalCode));
+          if (data.issuerDisplayOptions?.city !== false && issuer.city) pcCity.push(String(issuer.city));
+          const location = pcCity.join(' ').trim();
+          if (location) {
+            doc.text(location, 130, currentY);
+            currentY += 4;
+          }
+        }
+        if (data.issuerDisplayOptions?.email !== false && issuer.email) {
+          doc.text(String(issuer.email || ""), 130, currentY);
+          currentY += 4;
+        }
+        if (data.issuerDisplayOptions?.phone !== false && issuer.phone) {
+          doc.text(String(issuer.phone || ""), 130, currentY);
+          currentY += 4;
+        }
       }
 
       // Client Info (Top Left)
@@ -191,11 +218,37 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
       doc.text("EMISOR:", 15, yPos);
       doc.setFont("helvetica", "normal");
       if (issuer) {
-        doc.text(String(issuer.name || "(Nombre no definido)"), 15, yPos + 6);
-        doc.text(`CIF/DNI: ${String(issuer.idNumber || '---')}`, 15, yPos + 11);
-        doc.text(String(issuer.address || '---'), 15, yPos + 16);
-        doc.text(`${String(issuer.postalCode || '')} ${String(issuer.city || '')}`, 15, yPos + 21);
-        doc.text(`Tel: ${String(issuer.phone || '---')}`, 15, yPos + 26);
+        let currentY = yPos + 6;
+        if (data.issuerDisplayOptions?.name !== false) {
+          doc.text(String(issuer.name || "(Nombre no definido)"), 15, currentY);
+          currentY += 5;
+        }
+        if (data.issuerDisplayOptions?.idNumber !== false) {
+          doc.text(`CIF/DNI: ${String(issuer.idNumber || '---')}`, 15, currentY);
+          currentY += 5;
+        }
+        if (data.issuerDisplayOptions?.address !== false && issuer.address) {
+          doc.text(String(issuer.address || '---'), 15, currentY);
+          currentY += 5;
+        }
+        if (data.issuerDisplayOptions?.postalCode !== false || data.issuerDisplayOptions?.city !== false) {
+          let pcCity = [];
+          if (data.issuerDisplayOptions?.postalCode !== false && issuer.postalCode) pcCity.push(String(issuer.postalCode));
+          if (data.issuerDisplayOptions?.city !== false && issuer.city) pcCity.push(String(issuer.city));
+          const location = pcCity.join(' ').trim();
+          if (location) {
+            doc.text(location, 15, currentY);
+            currentY += 5;
+          }
+        }
+        if (data.issuerDisplayOptions?.phone !== false && issuer.phone) {
+          doc.text(`Tel: ${String(issuer.phone || '---')}`, 15, currentY);
+          currentY += 5;
+        }
+        if (data.issuerDisplayOptions?.email !== false && issuer.email) {
+          doc.text(`Email: ${String(issuer.email || '---')}`, 15, currentY);
+          currentY += 5;
+        }
       } else {
         doc.setTextColor(200, 0, 0);
         doc.text("(Datos del emisor no configurados)", 15, yPos + 6);

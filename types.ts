@@ -19,6 +19,15 @@ export interface InvoiceData {
   ivaPercentage: number;
   includeIvaInQuote?: boolean;
   includeAccountNumber?: boolean;
+  issuerDisplayOptions?: {
+    name: boolean;
+    idNumber: boolean;
+    address: boolean;
+    city: boolean;
+    postalCode: boolean;
+    phone: boolean;
+    email: boolean;
+  };
 }
 
 export interface IssuerData {

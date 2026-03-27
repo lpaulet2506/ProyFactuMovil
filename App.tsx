@@ -24,6 +24,15 @@ const App: React.FC = () => {
     ivaPercentage: 21,
     includeIvaInQuote: false,
     includeAccountNumber: false,
+    issuerDisplayOptions: {
+      name: true,
+      idNumber: true,
+      address: true,
+      postalCode: true,
+      city: true,
+      phone: true,
+      email: true
+    }
   };
 
   const [data, setData] = useState<InvoiceData>(initialInvoiceState);
@@ -709,6 +718,44 @@ const App: React.FC = () => {
                   {data.type === 'invoice' ? 'F' : data.type === 'quote' ? 'C' : 'R'}-2025-{issuer.nextInvoiceNumber || '0001'}
                 </span>
               </div>
+              
+              <div className="flex flex-col gap-2 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-3 w-1 bg-indigo-500 rounded-full"></div>
+                  <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Incluir Mis Datos:</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <label className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">
+                    <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked={data.issuerDisplayOptions?.name !== false} onChange={e => setData(p => ({ ...p, issuerDisplayOptions: { ...p.issuerDisplayOptions!, name: e.target.checked } }))} />
+                    <span className="text-[10px] font-bold text-gray-700 truncate max-w-[100px]" title={issuer.name || "Sin Nombre"}>{issuer.name || "Sin Nombre"}</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">
+                    <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked={data.issuerDisplayOptions?.idNumber !== false} onChange={e => setData(p => ({ ...p, issuerDisplayOptions: { ...p.issuerDisplayOptions!, idNumber: e.target.checked } }))} />
+                    <span className="text-[10px] font-bold text-gray-700 truncate max-w-[100px]" title={issuer.idNumber || "Sin CIF/DNI"}>{issuer.idNumber || "Sin CIF/DNI"}</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">
+                    <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked={data.issuerDisplayOptions?.address !== false} onChange={e => setData(p => ({ ...p, issuerDisplayOptions: { ...p.issuerDisplayOptions!, address: e.target.checked } }))} />
+                    <span className="text-[10px] font-bold text-gray-700 truncate max-w-[100px]" title={issuer.address || "Sin Dirección"}>{issuer.address || "Sin Dirección"}</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">
+                    <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked={data.issuerDisplayOptions?.city !== false} onChange={e => setData(p => ({ ...p, issuerDisplayOptions: { ...p.issuerDisplayOptions!, city: e.target.checked } }))} />
+                    <span className="text-[10px] font-bold text-gray-700 truncate max-w-[100px]" title={issuer.city || "Sin Ciudad"}>{issuer.city || "Sin Ciudad"}</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">
+                    <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked={data.issuerDisplayOptions?.postalCode !== false} onChange={e => setData(p => ({ ...p, issuerDisplayOptions: { ...p.issuerDisplayOptions!, postalCode: e.target.checked } }))} />
+                    <span className="text-[10px] font-bold text-gray-700 truncate max-w-[100px]" title={issuer.postalCode || "Sin CP"}>{issuer.postalCode || "Sin CP"}</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">
+                    <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked={data.issuerDisplayOptions?.phone !== false} onChange={e => setData(p => ({ ...p, issuerDisplayOptions: { ...p.issuerDisplayOptions!, phone: e.target.checked } }))} />
+                    <span className="text-[10px] font-bold text-gray-700 truncate max-w-[100px]" title={issuer.phone || "Sin Teléfono"}>{issuer.phone || "Sin Teléfono"}</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors">
+                    <input type="checkbox" className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked={data.issuerDisplayOptions?.email !== false} onChange={e => setData(p => ({ ...p, issuerDisplayOptions: { ...p.issuerDisplayOptions!, email: e.target.checked } }))} />
+                    <span className="text-[10px] font-bold text-gray-700 truncate max-w-[100px]" title={issuer.email || "Sin Email"}>{issuer.email || "Sin Email"}</span>
+                  </label>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 gap-4">
                 <Input
                   label="Nombre o Razón Social"
@@ -892,6 +939,7 @@ const App: React.FC = () => {
                             ivaPercentage: inv.ivaPercentage,
                             includeIvaInQuote: inv.includeIvaInQuote,
                             includeAccountNumber: inv.includeAccountNumber,
+                            issuerDisplayOptions: inv.issuerDisplayOptions || { name: true, idNumber: true, address: true, postalCode: true, city: true, phone: true, email: true },
                           });
                           setActiveTab('create');
                           window.scrollTo({ top: 0, behavior: 'smooth' });
