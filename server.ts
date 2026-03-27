@@ -51,8 +51,14 @@ async function initDb() {
         next_invoice_number TEXT,
         next_quote_number TEXT,
         next_receipt_number TEXT,
-        logo TEXT
+        logo TEXT,
+        account_number TEXT
       );
+    `);
+
+    await client.query(`
+      ALTER TABLE issuer_data 
+      ADD COLUMN IF NOT EXISTS account_number TEXT;
     `);
 
     await client.query(`
@@ -207,7 +213,8 @@ async function startServer() {
         nextInvoiceNumber: r.next_invoice_number,
         nextQuoteNumber: r.next_quote_number,
         nextReceiptNumber: r.next_receipt_number,
-        logo: r.logo
+        logo: r.logo,
+        accountNumber: r.account_number
       });
     } catch (err) {
       res.status(500).json({ error: "Error fetching issuer data" });
@@ -215,12 +222,12 @@ async function startServer() {
   });
 
   app.post("/api/issuer/:userId", async (req, res) => {
-    const { name, idNumber, address, postalCode, city, phone, email, nextInvoiceNumber, nextQuoteNumber, nextReceiptNumber, logo } = req.body;
+    const { name, idNumber, address, postalCode, city, phone, email, nextInvoiceNumber, nextQuoteNumber, nextReceiptNumber, logo, accountNumber } = req.body;
     console.log(`Saving issuer data for user ${req.params.userId}. Logo length: ${logo?.length || 0}`);
     try {
       const result = await pool.query(
-        `INSERT INTO issuer_data (user_id, name, id_number, address, postal_code, city, phone, email, next_invoice_number, next_quote_number, next_receipt_number, logo)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `INSERT INTO issuer_data (user_id, name, id_number, address, postal_code, city, phone, email, next_invoice_number, next_quote_number, next_receipt_number, logo, account_number)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          ON CONFLICT (user_id) DO UPDATE SET
          name = EXCLUDED.name,
          id_number = EXCLUDED.id_number,
@@ -232,8 +239,9 @@ async function startServer() {
          next_invoice_number = EXCLUDED.next_invoice_number,
          next_quote_number = EXCLUDED.next_quote_number,
          next_receipt_number = EXCLUDED.next_receipt_number,
-         logo = EXCLUDED.logo`,
-        [req.params.userId, name, idNumber, address, postalCode, city, phone, email, nextInvoiceNumber, nextQuoteNumber, nextReceiptNumber, logo]
+         logo = EXCLUDED.logo,
+         account_number = EXCLUDED.account_number`,
+        [req.params.userId, name, idNumber, address, postalCode, city, phone, email, nextInvoiceNumber, nextQuoteNumber, nextReceiptNumber, logo, accountNumber]
       );
       console.log("Issuer data saved successfully", result.rowCount);
       res.json({ success: true });

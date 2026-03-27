@@ -135,9 +135,10 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
         doc.setFillColor(44, 88, 200);
         doc.rect(totalBoxX, finalY + 12, totalBoxWidth, 12, 'F');
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(12);
+        doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
-        doc.text(`TOTAL`, totalBoxX + 5, finalY + 20);
+        const invoiceTotalLabel = data.includeIvaInQuote ? 'TOTAL (+IVA)' : 'TOTAL';
+        doc.text(invoiceTotalLabel, totalBoxX + 5, finalY + 20);
         doc.text(`${total.toFixed(2)}€`, rightMargin - 5, finalY + 20, { align: 'right' });
       } else {
         doc.setFillColor(44, 88, 200);
@@ -145,7 +146,7 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
-        const totalLabel = data.type === 'quote' && data.includeIvaInQuote ? 'TOTAL (Precio más IVA)' : 'TOTAL';
+        const totalLabel = data.includeIvaInQuote ? 'TOTAL (Precio más IVA)' : 'TOTAL';
         doc.text(totalLabel, totalBoxX + 5, finalY + 8);
         doc.text(`${total.toFixed(2)}€`, rightMargin - 5, finalY + 8, { align: 'right' });
       }
@@ -237,16 +238,16 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
         doc.text(`IVA (${data.ivaPercentage}%):`, summaryX, finalY + 8);
         doc.text(`${ivaAmount.toFixed(2)} €`, 195, finalY + 8, { align: 'right' });
         
-        doc.setFontSize(14);
+        doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(44, 88, 200);
-        doc.text(`TOTAL:`, summaryX, finalY + 20);
+        doc.text(data.includeIvaInQuote ? 'TOTAL (Precio más IVA):' : 'TOTAL:', summaryX, finalY + 20);
         doc.text(`${total.toFixed(2)} €`, 195, finalY + 20, { align: 'right' });
       } else {
         doc.setFontSize(12); // Reduced from 14
         doc.setFont("helvetica", "bold");
         doc.setTextColor(44, 88, 200);
-        const totalLabel = data.type === 'quote' && data.includeIvaInQuote ? 'TOTAL (Precio más IVA):' : 'TOTAL:';
+        const totalLabel = data.includeIvaInQuote ? 'TOTAL (Precio más IVA):' : 'TOTAL:';
         // Move label further left if it's the long one
         const labelX = totalLabel.includes('IVA') ? 90 : 115;
         doc.text(totalLabel, labelX, finalY);
