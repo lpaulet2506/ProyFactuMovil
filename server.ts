@@ -299,6 +299,7 @@ async function startServer() {
          iva_percentage = EXCLUDED.iva_percentage,
          include_iva_in_quote = EXCLUDED.include_iva_in_quote,
          total = EXCLUDED.total,
+         created_at = EXCLUDED.created_at,
          items = EXCLUDED.items,
          issuer = EXCLUDED.issuer,
          estado = 1`,

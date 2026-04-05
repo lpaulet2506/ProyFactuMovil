@@ -32,7 +32,8 @@ const App: React.FC = () => {
       city: true,
       phone: true,
       email: true
-    }
+    },
+    createdAt: new Date().toISOString()
   };
 
   const [data, setData] = useState<InvoiceData>(initialInvoiceState);
@@ -773,6 +774,23 @@ const App: React.FC = () => {
 
               <div className="grid grid-cols-1 gap-4">
                 <Input
+                  label="Fecha de Emisión"
+                  type="date"
+                  value={data.createdAt ? new Date(data.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const originalDate = data.createdAt ? new Date(data.createdAt) : new Date();
+                    const newDateVals = e.target.value.split('-');
+                    if (newDateVals.length === 3) {
+                      originalDate.setFullYear(parseInt(newDateVals[0]));
+                      originalDate.setMonth(parseInt(newDateVals[1]) - 1);
+                      originalDate.setDate(parseInt(newDateVals[2]));
+                      handleInputChange('createdAt', originalDate.toISOString());
+                    }
+                  }}
+                  required={true}
+                />
+                <Input
                   label="Nombre o Razón Social"
                   placeholder="Empresa Cliente S.L."
                   value={data.customerName}
@@ -953,6 +971,7 @@ const App: React.FC = () => {
                           includeIvaInQuote: inv.includeIvaInQuote || false,
                           includeAccountNumber: inv.includeAccountNumber || false,
                           issuerDisplayOptions: inv.issuerDisplayOptions || { name: true, idNumber: true, address: true, postalCode: true, city: true, phone: true, email: true },
+                          createdAt: inv.createdAt,
                         });
                         setEditingInvoiceId(inv.invoiceId);
                         setActiveTab('create');
@@ -979,6 +998,7 @@ const App: React.FC = () => {
                             includeIvaInQuote: inv.includeIvaInQuote || false,
                             includeAccountNumber: inv.includeAccountNumber || false,
                             issuerDisplayOptions: inv.issuerDisplayOptions || { name: true, idNumber: true, address: true, postalCode: true, city: true, phone: true, email: true },
+                            createdAt: inv.createdAt,
                           });
                           setEditingInvoiceId(null);
                           setActiveTab('create');

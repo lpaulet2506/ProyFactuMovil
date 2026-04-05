@@ -111,7 +111,7 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
       doc.setFont("helvetica", "normal");
       doc.setTextColor(100, 116, 139); // Slate 500
       doc.text(`Número : ${invoiceId}`, 55, 80);
-      doc.text(`Fecha : ${new Date().toLocaleDateString()}`, 130, 80);
+      doc.text(`Fecha : ${data.createdAt ? new Date(data.createdAt).toLocaleDateString() : new Date().toLocaleDateString()}`, 130, 80);
 
       // Table
       const tableRows = data.items.map(item => [
@@ -206,7 +206,7 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
       doc.setTextColor(100, 100, 100);
       doc.setFontSize(9);
       doc.text(`Nº ${title.toLowerCase()}: ${invoiceId}`, 200, 15, { align: 'right' });
-      doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 200, 20, { align: 'right' });
+      doc.text(`Fecha: ${data.createdAt ? new Date(data.createdAt).toLocaleDateString() : new Date().toLocaleDateString()}`, 200, 20, { align: 'right' });
 
       // Columnas: Emisor vs Receptor
       let yPos = 60;

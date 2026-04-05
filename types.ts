@@ -28,6 +28,7 @@ export interface InvoiceData {
     phone: boolean;
     email: boolean;
   };
+  createdAt?: string;
 }
 
 export interface IssuerData {
