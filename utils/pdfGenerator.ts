@@ -100,7 +100,7 @@ export const generateInvoicePDF = (data: InvoiceData, issuer: IssuerData | null,
       doc.text(String(data.customerName || ""), 15, 50);
       doc.text(String(data.address || ""), 15, 55);
       doc.text(`${String(data.postalCode || "")} ${String(issuer?.city || "")}`.trim(), 15, 60);
-      doc.text(`ID/DNI: ${String(data.idNumber || "")}`, 15, 65);
+      doc.text(`CIF/DNI: ${String(data.idNumber || "")}`, 15, 65);
 
       // Title and Meta
       doc.setFontSize(18);
