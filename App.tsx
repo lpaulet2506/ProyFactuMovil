@@ -243,11 +243,17 @@ const App: React.FC = () => {
     }));
   };
 
-  const addItem = () => {
-    setData(prev => ({
-      ...prev,
-      items: [...prev.items, { id: crypto.randomUUID(), concept: '', amount: 0 }]
-    }));
+  const addItem = (index?: number) => {
+    setData(prev => {
+      const newItems = [...prev.items];
+      const newItem = { id: crypto.randomUUID(), concept: '', amount: 0 };
+      if (typeof index === 'number') {
+        newItems.splice(index, 0, newItem);
+      } else {
+        newItems.push(newItem);
+      }
+      return { ...prev, items: newItems };
+    });
   };
 
   const removeItem = (id: string) => {
@@ -857,27 +863,41 @@ const App: React.FC = () => {
                 </div>
               </div>
               {data.items.map((item, index) => (
-                <div key={item.id} className="relative bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-4">
-                  <div className="absolute -top-2 -left-2 bg-indigo-600 text-white text-[10px] font-bold h-6 w-6 rounded-full flex items-center justify-center shadow-lg">{index + 1}</div>
-                  {data.items.length > 1 && <button onClick={() => removeItem(item.id)} className="absolute top-4 right-4 text-gray-200 hover:text-red-400"><Trash2 size={20} /></button>}
-                  <Input
-                    label="Descripción del Trabajo"
-                    placeholder="Servicios realizados..."
-                    value={item.concept}
-                    onChange={(e) => handleItemChange(item.id, 'concept', e.target.value)}
-                    required={true}
-                    error={showValidationErrors && !(item.concept || '').trim()}
-                  />
-                  <Input
-                    label="Precio (€)"
-                    type="number"
-                    placeholder="0.00"
-                    value={item.amount || ''}
-                    onChange={(e) => handleItemChange(item.id, 'amount', parseFloat(e.target.value) || 0)}
-                    required={true}
-                    error={showValidationErrors && (Number(item.amount) || 0) <= 0}
-                  />
-                </div>
+                <React.Fragment key={item.id}>
+                  <div className="relative bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-4">
+                    <div className="absolute -top-2 -left-2 bg-indigo-600 text-white text-[10px] font-bold h-6 w-6 rounded-full flex items-center justify-center shadow-lg">{index + 1}</div>
+                    {data.items.length > 1 && <button onClick={() => removeItem(item.id)} className="absolute top-4 right-4 text-gray-200 hover:text-red-400"><Trash2 size={20} /></button>}
+                    <Input
+                      label="Descripción del Trabajo"
+                      placeholder="Servicios realizados..."
+                      value={item.concept}
+                      onChange={(e) => handleItemChange(item.id, 'concept', e.target.value)}
+                      required={true}
+                      error={showValidationErrors && !(item.concept || '').trim()}
+                    />
+                    <Input
+                      label="Precio (€)"
+                      type="number"
+                      placeholder="0.00"
+                      value={item.amount || ''}
+                      onChange={(e) => handleItemChange(item.id, 'amount', parseFloat(e.target.value) || 0)}
+                      required={true}
+                      error={showValidationErrors && (Number(item.amount) || 0) <= 0}
+                    />
+                  </div>
+                  {index < data.items.length - 1 && (
+                    <div className="group relative flex justify-center -my-3 z-10 h-8 items-center">
+                      <div className="absolute inset-x-8 h-[1px] bg-indigo-50/50 group-hover:bg-indigo-100 transition-colors"></div>
+                      <button 
+                        onClick={() => addItem(index + 1)}
+                        className="relative bg-white text-indigo-600 border border-indigo-100 rounded-full p-1.5 shadow-sm opacity-0 group-hover:opacity-100 hover:bg-indigo-600 hover:text-white transition-all transform hover:scale-110 active:scale-95"
+                        title="Insertar línea aquí"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
               <button onClick={addItem} className="flex items-center justify-center gap-2 w-full py-4 border-2 border-dashed border-indigo-100 rounded-3xl text-indigo-600 font-bold text-sm hover:bg-indigo-50 transition-colors">
                 <Plus size={18} /> Añadir Línea
