@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Download, Receipt, History, FilePlus2, Building2, Save, LogOut, ShieldCheck, UserPlus, User as UserIcon, Mail, Image as ImageIcon, X, AlertCircle, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Download, Receipt, History, FilePlus2, Building2, Save, LogOut, ShieldCheck, UserPlus, User as UserIcon, Mail, Image as ImageIcon, X, AlertCircle, Edit2, Zap } from 'lucide-react';
 import Input from './components/Input';
 import { InvoiceData, InvoiceItem, SavedInvoice, IssuerData, User } from './types';
 import { generateInvoicePDF } from './utils/pdfGenerator';
 import { storage, emailService } from './services/storage';
+import AutoQuote from './components/AutoQuote';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(storage.getCurrentUser());
-  const [activeTab, setActiveTab] = useState<'create' | 'history' | 'settings' | 'admin'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'history' | 'settings' | 'admin' | 'auto_quote'>('create');
   const [history, setHistory] = useState<SavedInvoice[]>([]);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -709,7 +710,7 @@ const App: React.FC = () => {
             <div>
               <h1 className="text-xl font-black tracking-tight">FactuMovil</h1>
               <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest">
-                {activeTab === 'create' ? (data.type === 'invoice' ? 'Factura' : data.type === 'quote' ? 'Cotización' : 'Recibo') : activeTab === 'history' ? 'Historial' : activeTab === 'settings' ? 'Perfil' : 'Admin'}
+                {activeTab === 'create' ? (data.type === 'invoice' ? 'Factura' : data.type === 'quote' ? 'Cotización' : 'Recibo') : activeTab === 'history' ? 'Historial' : activeTab === 'settings' ? 'Perfil' : activeTab === 'auto_quote' ? 'Automática' : 'Admin'}
               </p>
             </div>
           </div>
@@ -1045,6 +1046,7 @@ const App: React.FC = () => {
         )}
         {activeTab === 'settings' && renderSettings()}
         {activeTab === 'admin' && currentUser.role === 'admin' && renderAdmin()}
+        {activeTab === 'auto_quote' && <AutoQuote />}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-20 flex flex-col items-center">
@@ -1109,6 +1111,10 @@ const App: React.FC = () => {
           <button onClick={() => setActiveTab('history')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'history' ? 'text-indigo-600 scale-110' : 'text-gray-400'}`}>
             <History size={26} strokeWidth={activeTab === 'history' ? 2.5 : 2} />
             <span className="text-[9px] font-black uppercase tracking-widest">Emitidas</span>
+          </button>
+          <button onClick={() => setActiveTab('auto_quote')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'auto_quote' ? 'text-green-600 scale-110' : 'text-gray-400'}`}>
+            <Zap size={26} strokeWidth={activeTab === 'auto_quote' ? 2.5 : 2} />
+            <span className="text-[9px] font-black uppercase tracking-widest">Rápida</span>
           </button>
           <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === 'settings' ? 'text-indigo-600 scale-110' : 'text-gray-400'}`}>
             <Building2 size={26} strokeWidth={activeTab === 'settings' ? 2.5 : 2} />
