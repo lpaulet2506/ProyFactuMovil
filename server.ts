@@ -86,6 +86,49 @@ async function initDb() {
       ALTER TABLE invoices ADD COLUMN IF NOT EXISTS estado INTEGER DEFAULT 1;
     `);
 
+    // Nuevas tablas para el módulo de presupuesto rápido (AutoQuote)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS auto_quote_categories (
+        category_id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT,
+        icon TEXT,
+        bg_color TEXT,
+        text_color TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS auto_quote_templates (
+        template_id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+        category_id TEXT REFERENCES auto_quote_categories(category_id) ON DELETE SET NULL,
+        name TEXT,
+        unit TEXT,
+        default_price NUMERIC,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS auto_quote_projects (
+        project_id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+        client_name TEXT,
+        project_ref TEXT,
+        address TEXT,
+        type TEXT,
+        notes TEXT,
+        subtotal NUMERIC,
+        iva NUMERIC,
+        total NUMERIC,
+        parts JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status INTEGER DEFAULT 1
+      );
+    `);
+
     // Ensure admin user exists
     console.log("Checking for admin user...");
     const adminCheck = await client.query("SELECT * FROM users WHERE email = 'admin@factumovil.com'");

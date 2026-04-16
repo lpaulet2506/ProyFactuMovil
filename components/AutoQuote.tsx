@@ -54,6 +54,30 @@ const AutoQuote = () => {
     { id: 3, name: 'Desmontaje mobiliario cocina', unit: 'ud', qty: 1, price: 120, total: 120.00 },
   ]);
 
+  const [activeMenu, setActiveMenu] = useState<number | null>(null);
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+
+  const deletePart = (index: number) => {
+    setParts(parts.filter((_, i) => i !== index));
+  };
+
+  const editPart = (index: number) => {
+    const p = parts[index];
+    setSelectedItem({ name: p.name, unit: p.unit });
+    setNewItem({
+      unit: p.unit,
+      qty: p.qty,
+      price: p.price,
+      includeMaterial: true,
+      includeLabor: true,
+      waste: 7.5,
+      zone: 'Cocina',
+      notes: ''
+    });
+    setEditingItemIndex(index);
+    setStep(4);
+  };
+
   const dragItem = React.useRef<number | null>(null);
   const dragOverItem = React.useRef<number | null>(null);
 
@@ -247,8 +271,8 @@ const AutoQuote = () => {
       <div className="flex items-center gap-3 px-4">
          <div className="bg-gray-100 p-3 rounded-xl"><LayoutGrid className="text-gray-500" /></div>
          <div>
-            <p className="font-bold text-gray-800 text-sm">Tarima flotante vinílica</p>
-            <p className="text-green-600 text-xs font-bold">Revestimientos</p>
+            <p className="font-bold text-gray-800 text-sm">{selectedItem?.name || 'Partida'}</p>
+            <p className="text-green-600 text-xs font-bold">{selectedCat || 'Categoría'}</p>
          </div>
       </div>
 
@@ -291,15 +315,25 @@ const AutoQuote = () => {
         </div>
 
         <button onClick={() => {
-          setParts([...parts, {
-            id: Date.now(),
+          const updatedPart = {
+            id: editingItemIndex !== null ? parts[editingItemIndex].id : Date.now(),
             name: selectedItem?.name || 'Partida',
             unit: newItem.unit,
             qty: newItem.qty,
             price: newItem.price,
             total: newItem.qty * newItem.price
-          }]);
-          handleNext();
+          };
+
+          if (editingItemIndex !== null) {
+            const newParts = [...parts];
+            newParts[editingItemIndex] = updatedPart;
+            setParts(newParts);
+            setEditingItemIndex(null);
+            setStep(5);
+          } else {
+            setParts([...parts, updatedPart]);
+            handleNext();
+          }
         }} className="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg mt-2 hover:bg-green-700">Guardar partida</button>
       </div>
     </div>
@@ -360,7 +394,27 @@ const AutoQuote = () => {
               </div>
               <div className="flex items-center gap-4">
                 <p className="font-black text-gray-800 text-xs">{p.total.toFixed(2)} €</p>
-                <MoreHorizontal size={16} className="text-gray-400" />
+                <div className="relative">
+                  <button onClick={() => setActiveMenu(activeMenu === i ? null : i)} className="p-2 -mr-2">
+                    <MoreHorizontal size={16} className="text-gray-400 hover:text-gray-700" />
+                  </button>
+                  {activeMenu === i && (
+                    <div className="absolute right-0 top-full mt-1 bg-white border border-gray-100 shadow-xl rounded-xl z-50 flex flex-col min-w-[140px] overflow-hidden">
+                      <button 
+                        onClick={() => { setActiveMenu(null); editPart(i); }} 
+                        className="px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 text-left font-bold"
+                      >
+                        <Edit2 size={16} className="text-indigo-500" /> Editar
+                      </button>
+                      <button 
+                        onClick={() => { setActiveMenu(null); deletePart(i); }} 
+                        className="px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 text-left font-bold border-t border-gray-50"
+                      >
+                        <Trash2 size={16} /> Eliminar
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
