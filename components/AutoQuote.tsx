@@ -54,6 +54,58 @@ const AutoQuote = () => {
     { id: 3, name: 'Desmontaje mobiliario cocina', unit: 'ud', qty: 1, price: 120, total: 120.00 },
   ]);
 
+  const dragItem = React.useRef<number | null>(null);
+  const dragOverItem = React.useRef<number | null>(null);
+
+  const handleSort = () => {
+    if (dragItem.current === null || dragOverItem.current === null) return;
+    const _parts = [...parts];
+    const draggedItemContent = _parts.splice(dragItem.current, 1)[0];
+    _parts.splice(dragOverItem.current, 0, draggedItemContent);
+    dragItem.current = null;
+    dragOverItem.current = null;
+    setParts(_parts);
+  };
+
+  const [touchDragIndex, setTouchDragIndex] = useState<number | null>(null);
+  const touchStartY = React.useRef(0);
+
+  const onTouchStart = (e: React.TouchEvent, index: number) => {
+    setTouchDragIndex(index);
+    touchStartY.current = e.touches[0].clientY;
+    document.body.style.overflow = 'hidden'; 
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (touchDragIndex === null) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+    const ROW_HEIGHT = 65; 
+    
+    if (Math.abs(diff) > ROW_HEIGHT / 1.5) {
+      const direction = diff > 0 ? 1 : -1;
+      const targetIndex = touchDragIndex + direction;
+      
+      setParts(prevParts => {
+        if (targetIndex >= 0 && targetIndex < prevParts.length) {
+          const newParts = [...prevParts];
+          const temp = newParts[touchDragIndex];
+          newParts[touchDragIndex] = newParts[targetIndex];
+          newParts[targetIndex] = temp;
+          setTouchDragIndex(targetIndex);
+          touchStartY.current = currentY;
+          return newParts;
+        }
+        return prevParts;
+      });
+    }
+  };
+
+  const onTouchEnd = () => {
+    setTouchDragIndex(null);
+    document.body.style.overflow = 'auto'; // restore body scroll
+  };
+
   const handleNext = () => setStep(s => s + 1);
   const handleBack = () => setStep(s => s - 1);
 
@@ -280,11 +332,27 @@ const AutoQuote = () => {
         <div className="flex justify-between items-center px-2">
           <h3 className="text-xs font-bold text-gray-800 uppercase tracking-widest">Partidas ({parts.length})</h3>
         </div>
-        <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden flex flex-col shadow-sm">
+        <div className="-mx-5 bg-white border-y border-gray-100 overflow-hidden flex flex-col">
           {parts.map((p, i) => (
-            <div key={p.id} className={`flex items-center justify-between p-4 ${i !== parts.length-1 ? 'border-b border-gray-50' : ''}`}>
+            <div 
+              key={p.id} 
+              onDragEnter={(e) => { dragOverItem.current = i; }}
+              onDragOver={(e) => e.preventDefault()}
+              className={`flex items-center justify-between p-4 px-5 ${i !== parts.length-1 ? 'border-b border-gray-50' : ''} ${touchDragIndex === i ? 'bg-green-50 z-10 shadow-sm relative' : 'bg-white hover:bg-gray-50'} transition`}
+            >
               <div className="flex items-center gap-3">
-                <Menu size={16} className="text-gray-300" />
+                <div 
+                  className="cursor-move p-3 -ml-3"
+                  draggable
+                  onDragStart={(e) => { dragItem.current = i; }}
+                  onDragEnd={handleSort}
+                  onTouchStart={(e) => onTouchStart(e, i)}
+                  onTouchMove={onTouchMove}
+                  onTouchEnd={onTouchEnd}
+                  onTouchCancel={onTouchEnd}
+                >
+                  <Menu size={16} className="text-gray-400 hover:text-gray-600" />
+                </div>
                 <div>
                    <p className="font-bold text-gray-800 text-xs">{p.name}</p>
                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">{p.unit} {p.qty}</p>
